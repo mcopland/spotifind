@@ -60,11 +60,25 @@ export default function ArtistsPage() {
   const sortBy = sorting[0]?.id;
   const sortDir = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["artists", { search, genres, page, pageSize, sortBy, sortDir }],
     queryFn: () =>
       getArtists({ search, genres, page, page_size: pageSize, sort_by: sortBy, sort_dir: sortDir }),
   });
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-red-400">Failed to load data.</p>
+        <button
+          onClick={() => void refetch()}
+          className="px-4 py-2 bg-[#1DB954] text-black text-sm font-medium rounded hover:bg-[#1ed760] transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full">
