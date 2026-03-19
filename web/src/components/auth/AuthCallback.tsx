@@ -7,8 +7,8 @@ export default function AuthCallback() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["me"] });
-    navigate("/", { replace: true });
+    void queryClient.invalidateQueries({ queryKey: ["me"] });
+    void navigate("/", { replace: true });
   }, [navigate, queryClient]);
 
   return (

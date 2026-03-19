@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import { type ReactNode } from "react";
 
-export type SortingState = Array<{ id: string; desc: boolean }>;
+export type SortingState = { id: string; desc: boolean }[];
 
 export interface ColumnDef<T> {
   id: string;
@@ -56,7 +56,7 @@ export default function DataTable<T>({
                 className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide ${
                   col.enableSorting ? "cursor-pointer select-none hover:text-gray-300" : ""
                 }`}
-                onClick={col.enableSorting ? () => handleSort(col.id) : undefined}
+                onClick={col.enableSorting ? () => { handleSort(col.id); } : undefined}
               >
                 <div className="flex items-center gap-1">
                   {col.header}
@@ -101,7 +101,7 @@ export default function DataTable<T>({
                     <td key={col.id} className="px-4 py-2.5 text-gray-300">
                       {col.cell
                         ? col.cell({ row: { original: row }, getValue: () => value })
-                        : String(value ?? "")}
+                        : (typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "")}
                     </td>
                   );
                 })}

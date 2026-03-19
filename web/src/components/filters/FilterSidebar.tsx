@@ -58,14 +58,14 @@ export default function FilterSidebar() {
             type="number"
             placeholder="From"
             value={yearMin ?? ""}
-            onChange={e => setYearMin(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={e => { setYearMin(e.target.value ? Number(e.target.value) : undefined); }}
             className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gray-500"
           />
           <input
             type="number"
             placeholder="To"
             value={yearMax ?? ""}
-            onChange={e => setYearMax(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={e => { setYearMax(e.target.value ? Number(e.target.value) : undefined); }}
             className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gray-500"
           />
         </div>
@@ -80,7 +80,7 @@ export default function FilterSidebar() {
             max={100}
             placeholder="Min"
             value={popularityMin ?? ""}
-            onChange={e => setPopularityMin(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={e => { setPopularityMin(e.target.value ? Number(e.target.value) : undefined); }}
             className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gray-500"
           />
           <input
@@ -89,7 +89,7 @@ export default function FilterSidebar() {
             max={100}
             placeholder="Max"
             value={popularityMax ?? ""}
-            onChange={e => setPopularityMax(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={e => { setPopularityMax(e.target.value ? Number(e.target.value) : undefined); }}
             className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gray-500"
           />
         </div>
@@ -101,7 +101,7 @@ export default function FilterSidebar() {
           {[undefined, true, false].map(val => (
             <button
               key={String(val)}
-              onClick={() => setExplicit(val)}
+              onClick={() => { setExplicit(val); }}
               className={`flex-1 py-1 text-xs rounded border transition-colors ${
                 explicit === val
                   ? "border-[#1DB954] text-[#1DB954] bg-[#1DB954]/10"
@@ -121,7 +121,7 @@ export default function FilterSidebar() {
             {allGenres.map(g => (
               <button
                 key={g}
-                onClick={() => toggleGenre(g)}
+                onClick={() => { toggleGenre(g); }}
                 className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
                   genres.includes(g)
                     ? "border-[#1DB954] text-[#1DB954] bg-[#1DB954]/10"

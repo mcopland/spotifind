@@ -36,7 +36,7 @@ const columns: ColumnDef<Artist>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-1.5">
         <div className="w-16 h-1 bg-gray-800 rounded-full overflow-hidden">
-          <div className="h-full bg-[#1DB954]" style={{ width: `${row.original.popularity}%` }} />
+          <div className="h-full bg-[#1DB954]" style={{ width: `${String(row.original.popularity ?? 0)}%` }} />
         </div>
         <span className="text-gray-600 text-xs">{row.original.popularity}</span>
       </div>

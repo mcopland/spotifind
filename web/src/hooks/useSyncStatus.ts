@@ -18,16 +18,16 @@ export function useSyncStatus() {
 
   async function startSync() {
     await triggerSync();
-    queryClient.invalidateQueries({ queryKey: ["sync-status"] });
+    void queryClient.invalidateQueries({ queryKey: ["sync-status"] });
   }
 
   function onSyncComplete() {
-    queryClient.invalidateQueries({ queryKey: ["tracks"] });
-    queryClient.invalidateQueries({ queryKey: ["albums"] });
-    queryClient.invalidateQueries({ queryKey: ["artists"] });
-    queryClient.invalidateQueries({ queryKey: ["playlists"] });
-    queryClient.invalidateQueries({ queryKey: ["stats"] });
-    queryClient.invalidateQueries({ queryKey: ["genres"] });
+    void queryClient.invalidateQueries({ queryKey: ["tracks"] });
+    void queryClient.invalidateQueries({ queryKey: ["albums"] });
+    void queryClient.invalidateQueries({ queryKey: ["artists"] });
+    void queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    void queryClient.invalidateQueries({ queryKey: ["stats"] });
+    void queryClient.invalidateQueries({ queryKey: ["genres"] });
   }
 
   return { syncJob, isLoading, isRunning, startSync, onSyncComplete };

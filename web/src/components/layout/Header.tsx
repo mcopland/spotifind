@@ -18,14 +18,14 @@ export default function Header() {
   function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setSearch(val), 300);
+    debounceRef.current = setTimeout(() => { setSearch(val); }, 300);
     e.target.value = val;
   }
 
   async function handleLogout() {
     await logout();
     queryClient.clear();
-    navigate("/login");
+    void navigate("/login");
   }
 
   return (
@@ -56,7 +56,7 @@ export default function Header() {
           </div>
         )}
         <button
-          onClick={handleLogout}
+          onClick={() => { void handleLogout(); }}
           className="p-1.5 text-gray-500 hover:text-white transition-colors"
           title="Logout"
         >

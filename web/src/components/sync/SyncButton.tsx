@@ -16,14 +16,14 @@ export default function SyncButton() {
           <div className="w-32 h-1.5 bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-[#1DB954] transition-all duration-500"
-              style={{ width: progress != null ? `${progress}%` : "30%" }}
+              style={{ width: progress != null ? `${String(progress)}%` : "30%" }}
             />
           </div>
-          <span>{progress != null ? `${progress}%` : "syncing..."}</span>
+          <span>{progress != null ? `${String(progress)}%` : "syncing..."}</span>
         </div>
       )}
       <button
-        onClick={startSync}
+        onClick={() => { void startSync(); }}
         disabled={isRunning}
         className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[#1DB954] text-black font-medium rounded-full hover:bg-[#1ed760] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >

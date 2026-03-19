@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosError } from "axios";
 
 const client = axios.create({
   baseURL: "/api",
@@ -7,7 +7,7 @@ const client = axios.create({
 
 client.interceptors.response.use(
   res => res,
-  err => {
+  (err: AxiosError) => {
     if (err.response?.status === 401) {
       window.location.href = "/login";
     }
