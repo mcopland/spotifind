@@ -2,7 +2,10 @@ package router
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -64,5 +67,26 @@ func New(h Handlers, jwtSecret, frontendURL string) http.Handler {
 		})
 	})
 
+	r.Get("/*", spaHandler("./dist"))
+
 	return r
+}
+
+// spaHandler serves static files from dir, falling back to index.html for
+// paths not matching a file (supports client-side routing in production).
+func spaHandler(dir string) http.HandlerFunc {
+	fs := http.FileServer(http.Dir(dir))
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(dir, filepath.Clean("/"+r.URL.Path))
+		info, err := os.Stat(path)
+		if os.IsNotExist(err) || (err == nil && info.IsDir()) {
+			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			return
+		}
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to stat %s", r.URL.Path), http.StatusInternalServerError)
+			return
+		}
+		fs.ServeHTTP(w, r)
+	}
 }
