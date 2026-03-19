@@ -1,0 +1,16 @@
+DROP TABLE IF EXISTS user_top_artists;
+DROP TABLE IF EXISTS user_top_tracks;
+DROP TABLE IF EXISTS user_recently_played;
+DROP TABLE IF EXISTS user_playlists;
+DROP TABLE IF EXISTS user_followed_artists;
+DROP TABLE IF EXISTS user_saved_albums;
+DROP TABLE IF EXISTS user_saved_tracks;
+DROP TABLE IF EXISTS playlist_tracks;
+DROP TABLE IF EXISTS track_artists;
+DROP TABLE IF EXISTS album_artists;
+DROP TABLE IF EXISTS sync_jobs;
+DROP TABLE IF EXISTS playlists;
+DROP TABLE IF EXISTS tracks;
+DROP TABLE IF EXISTS albums;
+DROP TABLE IF EXISTS artists;
+DROP TABLE IF EXISTS users;
