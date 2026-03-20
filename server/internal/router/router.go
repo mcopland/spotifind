@@ -15,13 +15,15 @@ import (
 )
 
 type Handlers struct {
-	Auth      *handler.AuthHandler
-	Tracks    *handler.TrackHandler
-	Albums    *handler.AlbumHandler
-	Artists   *handler.ArtistHandler
-	Playlists *handler.PlaylistHandler
-	Sync      *handler.SyncHandler
-	Meta      *handler.MetaHandler
+	Auth           *handler.AuthHandler
+	Tracks         *handler.TrackHandler
+	Albums         *handler.AlbumHandler
+	Artists        *handler.ArtistHandler
+	Playlists      *handler.PlaylistHandler
+	Sync           *handler.SyncHandler
+	Meta           *handler.MetaHandler
+	RecentlyPlayed *handler.RecentlyPlayedHandler
+	Top            *handler.TopHandler
 }
 
 func New(h Handlers, jwtSecret, frontendURL string) http.Handler {
@@ -61,6 +63,10 @@ func New(h Handlers, jwtSecret, frontendURL string) http.Handler {
 
 			r.Post("/sync", h.Sync.Trigger)
 			r.Get("/sync/status", h.Sync.Status)
+
+			r.Get("/recently-played", h.RecentlyPlayed.List)
+			r.Get("/top/tracks", h.Top.ListTracks)
+			r.Get("/top/artists", h.Top.ListArtists)
 
 			r.Get("/genres", h.Meta.Genres)
 			r.Get("/stats", h.Meta.Stats)

@@ -136,3 +136,31 @@ type Stats struct {
 	Artists   int `json:"artists"`
 	Playlists int `json:"playlists"`
 }
+
+type RecentlyPlayedTrack struct {
+	Track
+	PlayedAt time.Time `json:"played_at"`
+}
+
+type TopTrack struct {
+	Track
+	Rank      int    `json:"rank"`
+	TimeRange string `json:"time_range"`
+}
+
+type TopArtist struct {
+	Artist
+	Rank      int    `json:"rank"`
+	TimeRange string `json:"time_range"`
+}
+
+type RecentlyPlayedFilters struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+}
+
+type TopFilters struct {
+	TimeRange string `json:"time_range"`
+	Page      int    `json:"page"`
+	PageSize  int    `json:"page_size"`
+}

@@ -9,9 +9,10 @@ import (
 	"time"
 )
 
-const apiBase = "https://api.spotify.com/v1"
+const defaultAPIBase = "https://api.spotify.com/v1"
 
 type Client struct {
+	apiBase      string
 	accessToken  string
 	refreshToken string
 	expiresAt    time.Time
@@ -22,12 +23,23 @@ type Client struct {
 
 func NewClient(accessToken, refreshToken string, expiresAt time.Time, auth *AuthClient, userID int64, onRefresh func(string, string, time.Time) error) *Client {
 	return &Client{
+		apiBase:      defaultAPIBase,
 		accessToken:  accessToken,
 		refreshToken: refreshToken,
 		expiresAt:    expiresAt,
 		auth:         auth,
 		userID:       userID,
 		onRefresh:    onRefresh,
+	}
+}
+
+// NewTestClient returns a Client that targets baseURL instead of the real Spotify API.
+// The token is set to never expire so tests do not trigger a refresh.
+func NewTestClient(baseURL, accessToken string) *Client {
+	return &Client{
+		apiBase:     baseURL,
+		accessToken: accessToken,
+		expiresAt:   time.Now().Add(24 * time.Hour),
 	}
 }
 
@@ -38,7 +50,7 @@ func (c *Client) Get(ctx context.Context, path string, out any) error {
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiBase+path, nil)
 	if err != nil {
 		return err
 	}

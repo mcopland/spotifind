@@ -13,13 +13,15 @@ import (
 )
 
 type Service struct {
-	trackRepo    *repository.TrackRepo
-	albumRepo    *repository.AlbumRepo
-	artistRepo   *repository.ArtistRepo
-	playlistRepo *repository.PlaylistRepo
-	syncRepo     *repository.SyncRepo
-	userRepo     *repository.UserRepo
-	authClient   *spotify.AuthClient
+	trackRepo          *repository.TrackRepo
+	albumRepo          *repository.AlbumRepo
+	artistRepo         *repository.ArtistRepo
+	playlistRepo       *repository.PlaylistRepo
+	syncRepo           *repository.SyncRepo
+	userRepo           *repository.UserRepo
+	authClient         *spotify.AuthClient
+	recentlyPlayedRepo *repository.RecentlyPlayedRepo
+	topRepo            *repository.TopRepo
 }
 
 func NewService(
@@ -30,15 +32,19 @@ func NewService(
 	syncRepo *repository.SyncRepo,
 	userRepo *repository.UserRepo,
 	authClient *spotify.AuthClient,
+	recentlyPlayedRepo *repository.RecentlyPlayedRepo,
+	topRepo *repository.TopRepo,
 ) *Service {
 	return &Service{
-		trackRepo:    trackRepo,
-		albumRepo:    albumRepo,
-		artistRepo:   artistRepo,
-		playlistRepo: playlistRepo,
-		syncRepo:     syncRepo,
-		userRepo:     userRepo,
-		authClient:   authClient,
+		trackRepo:          trackRepo,
+		albumRepo:          albumRepo,
+		artistRepo:         artistRepo,
+		playlistRepo:       playlistRepo,
+		syncRepo:           syncRepo,
+		userRepo:           userRepo,
+		authClient:         authClient,
+		recentlyPlayedRepo: recentlyPlayedRepo,
+		topRepo:            topRepo,
 	}
 }
 
@@ -92,6 +98,21 @@ func (s *Service) runSync(jobID, userID int64) {
 
 	if err := s.syncPlaylists(ctx, client, userID); err != nil {
 		s.failSync(ctx, jobID, fmt.Sprintf("sync playlists: %v", err))
+		return
+	}
+
+	if err := s.syncRecentlyPlayed(ctx, client, userID); err != nil {
+		s.failSync(ctx, jobID, fmt.Sprintf("sync recently played: %v", err))
+		return
+	}
+
+	if err := s.syncTopTracks(ctx, client, userID); err != nil {
+		s.failSync(ctx, jobID, fmt.Sprintf("sync top tracks: %v", err))
+		return
+	}
+
+	if err := s.syncTopArtists(ctx, client, userID); err != nil {
+		s.failSync(ctx, jobID, fmt.Sprintf("sync top artists: %v", err))
 		return
 	}
 
@@ -318,4 +339,110 @@ func parseYear(releaseDate string) int {
 		}
 	}
 	return 0
+}
+
+func (s *Service) syncRecentlyPlayed(ctx context.Context, client *spotify.Client, userID int64) error {
+	items, err := client.GetRecentlyPlayed(ctx)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		st := item.Track
+		al, err := s.upsertAlbum(ctx, st.Album)
+		if err != nil {
+			return err
+		}
+		track := &models.Track{
+			SpotifyID:   st.ID,
+			Name:        st.Name,
+			AlbumID:     &al.ID,
+			TrackNumber: st.TrackNumber,
+			DurationMs:  st.DurationMs,
+			Explicit:    st.Explicit,
+			Popularity:  st.Popularity,
+		}
+		saved, err := s.trackRepo.Upsert(ctx, track)
+		if err != nil {
+			return err
+		}
+		for _, sa := range st.Artists {
+			ar, err := s.upsertArtist(ctx, sa)
+			if err != nil {
+				return err
+			}
+			_ = s.trackRepo.LinkArtist(ctx, saved.ID, ar.ID)
+		}
+		playedAt, err := time.Parse(time.RFC3339, item.PlayedAt)
+		if err != nil {
+			return fmt.Errorf("parse played_at %q: %w", item.PlayedAt, err)
+		}
+		if err := s.recentlyPlayedRepo.Upsert(ctx, userID, saved.ID, playedAt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) syncTopTracks(ctx context.Context, client *spotify.Client, userID int64) error {
+	for _, timeRange := range []string{"short_term", "medium_term", "long_term"} {
+		tracks, err := client.GetTopTracks(ctx, timeRange)
+		if err != nil {
+			return err
+		}
+		if err := s.topRepo.DeleteTopTracksForUser(ctx, userID, timeRange); err != nil {
+			return err
+		}
+		for i, st := range tracks {
+			al, err := s.upsertAlbum(ctx, st.Album)
+			if err != nil {
+				return err
+			}
+			track := &models.Track{
+				SpotifyID:   st.ID,
+				Name:        st.Name,
+				AlbumID:     &al.ID,
+				TrackNumber: st.TrackNumber,
+				DurationMs:  st.DurationMs,
+				Explicit:    st.Explicit,
+				Popularity:  st.Popularity,
+			}
+			saved, err := s.trackRepo.Upsert(ctx, track)
+			if err != nil {
+				return err
+			}
+			for _, sa := range st.Artists {
+				ar, err := s.upsertArtist(ctx, sa)
+				if err != nil {
+					return err
+				}
+				_ = s.trackRepo.LinkArtist(ctx, saved.ID, ar.ID)
+			}
+			if err := s.topRepo.UpsertTopTrack(ctx, userID, saved.ID, i+1, timeRange); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Service) syncTopArtists(ctx context.Context, client *spotify.Client, userID int64) error {
+	for _, timeRange := range []string{"short_term", "medium_term", "long_term"} {
+		artists, err := client.GetTopArtists(ctx, timeRange)
+		if err != nil {
+			return err
+		}
+		if err := s.topRepo.DeleteTopArtistsForUser(ctx, userID, timeRange); err != nil {
+			return err
+		}
+		for i, sa := range artists {
+			ar, err := s.upsertArtist(ctx, sa)
+			if err != nil {
+				return err
+			}
+			if err := s.topRepo.UpsertTopArtist(ctx, userID, ar.ID, i+1, timeRange); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

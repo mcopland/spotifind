@@ -5,6 +5,15 @@ import (
 	"fmt"
 )
 
+type recentlyPlayedResponse struct {
+	Items []PlayHistoryItem `json:"items"`
+}
+
+type PlayHistoryItem struct {
+	PlayedAt string        `json:"played_at"`
+	Track    *SpotifyTrack `json:"track"`
+}
+
 type SpotifyUser struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
@@ -224,4 +233,41 @@ func (c *Client) GetPlaylistTracks(ctx context.Context, playlistID string, onBat
 		}
 	}
 	return nil
+}
+
+// GetRecentlyPlayed returns up to 50 recently played tracks.
+// Items with a nil or empty-ID track are omitted.
+func (c *Client) GetRecentlyPlayed(ctx context.Context) ([]PlayHistoryItem, error) {
+	var resp recentlyPlayedResponse
+	if err := c.Get(ctx, "/me/player/recently-played?limit=50", &resp); err != nil {
+		return nil, fmt.Errorf("get recently played: %w", err)
+	}
+	out := make([]PlayHistoryItem, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item.Track == nil || item.Track.ID == "" {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+// GetTopTracks returns up to 50 top tracks for the given time range.
+func (c *Client) GetTopTracks(ctx context.Context, timeRange string) ([]SpotifyTrack, error) {
+	var resp pagedResponse[SpotifyTrack]
+	path := fmt.Sprintf("/me/top/tracks?time_range=%s&limit=50", timeRange)
+	if err := c.Get(ctx, path, &resp); err != nil {
+		return nil, fmt.Errorf("get top tracks %s: %w", timeRange, err)
+	}
+	return resp.Items, nil
+}
+
+// GetTopArtists returns up to 50 top artists for the given time range.
+func (c *Client) GetTopArtists(ctx context.Context, timeRange string) ([]SpotifyArtist, error) {
+	var resp pagedResponse[SpotifyArtist]
+	path := fmt.Sprintf("/me/top/artists?time_range=%s&limit=50", timeRange)
+	if err := c.Get(ctx, path, &resp); err != nil {
+		return nil, fmt.Errorf("get top artists %s: %w", timeRange, err)
+	}
+	return resp.Items, nil
 }

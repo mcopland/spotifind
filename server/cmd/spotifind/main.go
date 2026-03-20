@@ -40,18 +40,22 @@ func main() {
 	artistRepo := repository.NewArtistRepo(pool)
 	playlistRepo := repository.NewPlaylistRepo(pool)
 	syncRepo := repository.NewSyncRepo(pool)
+	recentlyPlayedRepo := repository.NewRecentlyPlayedRepo(pool)
+	topRepo := repository.NewTopRepo(pool)
 
 	authClient := spotify.NewAuthClient(cfg.SpotifyClientID, cfg.SpotifyClientSecret, cfg.SpotifyRedirectURI)
-	syncService := syncpkg.NewService(trackRepo, albumRepo, artistRepo, playlistRepo, syncRepo, userRepo, authClient)
+	syncService := syncpkg.NewService(trackRepo, albumRepo, artistRepo, playlistRepo, syncRepo, userRepo, authClient, recentlyPlayedRepo, topRepo)
 
 	handlers := router.Handlers{
-		Auth:      handler.NewAuthHandler(authClient, userRepo, cfg.JWTSecret, cfg.FrontendURL),
-		Tracks:    handler.NewTrackHandler(trackRepo),
-		Albums:    handler.NewAlbumHandler(albumRepo),
-		Artists:   handler.NewArtistHandler(artistRepo),
-		Playlists: handler.NewPlaylistHandler(playlistRepo),
-		Sync:      handler.NewSyncHandler(syncService, syncRepo),
-		Meta:      handler.NewMetaHandler(artistRepo, playlistRepo),
+		Auth:           handler.NewAuthHandler(authClient, userRepo, cfg.JWTSecret, cfg.FrontendURL),
+		Tracks:         handler.NewTrackHandler(trackRepo),
+		Albums:         handler.NewAlbumHandler(albumRepo),
+		Artists:        handler.NewArtistHandler(artistRepo),
+		Playlists:      handler.NewPlaylistHandler(playlistRepo),
+		Sync:           handler.NewSyncHandler(syncService, syncRepo),
+		Meta:           handler.NewMetaHandler(artistRepo, playlistRepo),
+		RecentlyPlayed: handler.NewRecentlyPlayedHandler(recentlyPlayedRepo),
+		Top:            handler.NewTopHandler(topRepo),
 	}
 
 	srv := &http.Server{
