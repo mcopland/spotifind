@@ -53,10 +53,24 @@ const columns: ColumnDef<Playlist>[] = [
 ];
 
 export default function PlaylistsPage() {
-  const { data: playlists = [], isLoading } = useQuery({
+  const { data: playlists = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["playlists"],
     queryFn: getPlaylists,
   });
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-red-400">Failed to load data.</p>
+        <button
+          onClick={() => void refetch()}
+          className="px-4 py-2 bg-[#1DB954] text-black text-sm font-medium rounded hover:bg-[#1ed760] transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-auto">

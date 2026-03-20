@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AuthCallback from "./components/auth/AuthCallback";
 import LoginPage from "./components/auth/LoginPage";
 import AppLayout from "./components/layout/AppLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { useAuth } from "./hooks/useAuth";
 import AlbumsPage from "./pages/AlbumsPage";
 import ArtistsPage from "./pages/ArtistsPage";
@@ -41,10 +42,10 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<TracksPage />} />
-        <Route path="albums" element={<AlbumsPage />} />
-        <Route path="artists" element={<ArtistsPage />} />
-        <Route path="playlists" element={<PlaylistsPage />} />
+        <Route index element={<ErrorBoundary><TracksPage /></ErrorBoundary>} />
+        <Route path="albums" element={<ErrorBoundary><AlbumsPage /></ErrorBoundary>} />
+        <Route path="artists" element={<ErrorBoundary><ArtistsPage /></ErrorBoundary>} />
+        <Route path="playlists" element={<ErrorBoundary><PlaylistsPage /></ErrorBoundary>} />
       </Route>
     </Routes>
   );
