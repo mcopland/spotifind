@@ -8,6 +8,8 @@ import { useAuth } from "./hooks/useAuth";
 import AlbumsPage from "./pages/AlbumsPage";
 import ArtistsPage from "./pages/ArtistsPage";
 import PlaylistsPage from "./pages/PlaylistsPage";
+import RecentlyPlayedPage from "./pages/RecentlyPlayedPage";
+import TopChartsPage from "./pages/TopChartsPage";
 import TracksPage from "./pages/TracksPage";
 
 const queryClient = new QueryClient({
@@ -46,6 +48,8 @@ function AppRoutes() {
         <Route path="albums" element={<ErrorBoundary><AlbumsPage /></ErrorBoundary>} />
         <Route path="artists" element={<ErrorBoundary><ArtistsPage /></ErrorBoundary>} />
         <Route path="playlists" element={<ErrorBoundary><PlaylistsPage /></ErrorBoundary>} />
+        <Route path="recently-played" element={<ErrorBoundary><RecentlyPlayedPage /></ErrorBoundary>} />
+        <Route path="top" element={<ErrorBoundary><TopChartsPage /></ErrorBoundary>} />
       </Route>
     </Routes>
   );
