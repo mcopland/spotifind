@@ -118,3 +118,19 @@ export interface ArtistFilters {
   sort_by?: string;
   sort_dir?: string;
 }
+
+export type TimeRange = "short_term" | "medium_term" | "long_term";
+
+export interface RecentlyPlayedTrack extends Track {
+  played_at: string;
+}
+
+export interface TopTrack extends Track {
+  rank: number;
+  time_range: TimeRange;
+}
+
+export interface TopArtist extends Artist {
+  rank: number;
+  time_range: TimeRange;
+}

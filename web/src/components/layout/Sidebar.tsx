@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Disc, ListMusic, Mic2, Music } from "lucide-react";
+import { Clock, Disc, ListMusic, Mic2, Music, TrendingUp } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { getStats } from "../../api/sync";
 
@@ -8,6 +8,8 @@ const nav = [
   { to: "/albums", label: "Albums", icon: Disc },
   { to: "/artists", label: "Artists", icon: Mic2 },
   { to: "/playlists", label: "Playlists", icon: ListMusic },
+  { to: "/recently-played", label: "Recently Played", icon: Clock },
+  { to: "/top", label: "Top Charts", icon: TrendingUp },
 ];
 
 export default function Sidebar() {
