@@ -1,21 +1,26 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/mcopland/spotifind/internal/middleware"
 	"github.com/mcopland/spotifind/internal/models"
-	"github.com/mcopland/spotifind/internal/repository"
 )
 
-type ArtistHandler struct {
-	artistRepo *repository.ArtistRepo
+// ArtistLister is satisfied by repository.ArtistRepo.
+type ArtistLister interface {
+	ListForUser(ctx context.Context, userID int64, f models.ArtistFilters) (*models.PaginatedResult[models.Artist], error)
 }
 
-func NewArtistHandler(artistRepo *repository.ArtistRepo) *ArtistHandler {
-	return &ArtistHandler{artistRepo: artistRepo}
+type ArtistHandler struct {
+	artistRepo ArtistLister
+}
+
+func NewArtistHandler(repo ArtistLister) *ArtistHandler {
+	return &ArtistHandler{artistRepo: repo}
 }
 
 func (h *ArtistHandler) List(w http.ResponseWriter, r *http.Request) {

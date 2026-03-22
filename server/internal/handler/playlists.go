@@ -1,20 +1,27 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mcopland/spotifind/internal/middleware"
-	"github.com/mcopland/spotifind/internal/repository"
+	"github.com/mcopland/spotifind/internal/models"
 )
 
-type PlaylistHandler struct {
-	playlistRepo *repository.PlaylistRepo
+// PlaylistQuerier is satisfied by repository.PlaylistRepo.
+type PlaylistQuerier interface {
+	ListForUser(ctx context.Context, userID int64) ([]models.Playlist, error)
+	GetTracksForPlaylist(ctx context.Context, userID int64, playlistSpotifyID string, f models.TrackFilters) (*models.PaginatedResult[models.Track], error)
 }
 
-func NewPlaylistHandler(playlistRepo *repository.PlaylistRepo) *PlaylistHandler {
-	return &PlaylistHandler{playlistRepo: playlistRepo}
+type PlaylistHandler struct {
+	playlistRepo PlaylistQuerier
+}
+
+func NewPlaylistHandler(repo PlaylistQuerier) *PlaylistHandler {
+	return &PlaylistHandler{playlistRepo: repo}
 }
 
 func (h *PlaylistHandler) List(w http.ResponseWriter, r *http.Request) {

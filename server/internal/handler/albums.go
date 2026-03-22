@@ -1,21 +1,26 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/mcopland/spotifind/internal/middleware"
 	"github.com/mcopland/spotifind/internal/models"
-	"github.com/mcopland/spotifind/internal/repository"
 )
 
-type AlbumHandler struct {
-	albumRepo *repository.AlbumRepo
+// AlbumLister is satisfied by repository.AlbumRepo.
+type AlbumLister interface {
+	ListForUser(ctx context.Context, userID int64, f models.AlbumFilters) (*models.PaginatedResult[models.Album], error)
 }
 
-func NewAlbumHandler(albumRepo *repository.AlbumRepo) *AlbumHandler {
-	return &AlbumHandler{albumRepo: albumRepo}
+type AlbumHandler struct {
+	albumRepo AlbumLister
+}
+
+func NewAlbumHandler(repo AlbumLister) *AlbumHandler {
+	return &AlbumHandler{albumRepo: repo}
 }
 
 func (h *AlbumHandler) List(w http.ResponseWriter, r *http.Request) {

@@ -161,6 +161,60 @@ func TestTopHandler_ListArtists_RepoError(t *testing.T) {
 	}
 }
 
+func TestTopHandler_ParsesFilters_InvalidPage(t *testing.T) {
+	var capturedFilters models.TopFilters
+	stub := &stubTopRepo{}
+	stub.tracks = &models.PaginatedResult[models.TopTrack]{Items: []models.TopTrack{}}
+
+	h := handler.NewTopHandler(&captureTopRepo{stub: stub, captureFilters: &capturedFilters})
+	req := httptest.NewRequest(http.MethodGet, "/top/tracks?page=notanumber", nil)
+	req = req.WithContext(withTopUserID(req.Context(), 1))
+	rr := httptest.NewRecorder()
+
+	h.ListTracks(rr, req)
+
+	if capturedFilters.Page != 0 {
+		t.Errorf("expected Page 0 for invalid page param, got %d", capturedFilters.Page)
+	}
+}
+
+func TestTopHandler_ParsesFilters_InvalidPageSize(t *testing.T) {
+	var capturedFilters models.TopFilters
+	stub := &stubTopRepo{}
+	stub.tracks = &models.PaginatedResult[models.TopTrack]{Items: []models.TopTrack{}}
+
+	h := handler.NewTopHandler(&captureTopRepo{stub: stub, captureFilters: &capturedFilters})
+	req := httptest.NewRequest(http.MethodGet, "/top/tracks?page_size=notanumber", nil)
+	req = req.WithContext(withTopUserID(req.Context(), 1))
+	rr := httptest.NewRecorder()
+
+	h.ListTracks(rr, req)
+
+	if capturedFilters.PageSize != 0 {
+		t.Errorf("expected PageSize 0 for invalid page_size param, got %d", capturedFilters.PageSize)
+	}
+}
+
+func TestTopHandler_ParsesFilters_ValidPageAndPageSize(t *testing.T) {
+	var capturedFilters models.TopFilters
+	stub := &stubTopRepo{}
+	stub.tracks = &models.PaginatedResult[models.TopTrack]{Items: []models.TopTrack{}}
+
+	h := handler.NewTopHandler(&captureTopRepo{stub: stub, captureFilters: &capturedFilters})
+	req := httptest.NewRequest(http.MethodGet, "/top/tracks?time_range=short_term&page=2&page_size=25", nil)
+	req = req.WithContext(withTopUserID(req.Context(), 1))
+	rr := httptest.NewRecorder()
+
+	h.ListTracks(rr, req)
+
+	if capturedFilters.Page != 2 {
+		t.Errorf("expected Page 2, got %d", capturedFilters.Page)
+	}
+	if capturedFilters.PageSize != 25 {
+		t.Errorf("expected PageSize 25, got %d", capturedFilters.PageSize)
+	}
+}
+
 // captureTopRepo captures the filters passed to list methods for assertion in tests.
 type captureTopRepo struct {
 	stub           *stubTopRepo

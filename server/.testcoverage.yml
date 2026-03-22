@@ -1,0 +1,4 @@
+profile: combined.out
+local-prefix: github.com/mcopland/spotifind
+threshold:
+  total: 60
