@@ -1,22 +1,32 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/mcopland/spotifind/internal/middleware"
-	"github.com/mcopland/spotifind/internal/repository"
-	syncpkg "github.com/mcopland/spotifind/internal/sync"
+	"github.com/mcopland/spotifind/internal/models"
 )
 
-type SyncHandler struct {
-	syncService *syncpkg.Service
-	syncRepo    *repository.SyncRepo
+// SyncStarter is satisfied by sync.Service.
+type SyncStarter interface {
+	StartSync(userID int64) (int64, error)
 }
 
-func NewSyncHandler(syncService *syncpkg.Service, syncRepo *repository.SyncRepo) *SyncHandler {
+// SyncStatusGetter is satisfied by repository.SyncRepo.
+type SyncStatusGetter interface {
+	GetLatestForUser(ctx context.Context, userID int64) (*models.SyncJob, error)
+}
+
+type SyncHandler struct {
+	syncService SyncStarter
+	syncRepo    SyncStatusGetter
+}
+
+func NewSyncHandler(syncService SyncStarter, syncRepo SyncStatusGetter) *SyncHandler {
 	return &SyncHandler{
 		syncService: syncService,
 		syncRepo:    syncRepo,

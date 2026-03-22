@@ -1,19 +1,27 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/mcopland/spotifind/internal/middleware"
+	"github.com/mcopland/spotifind/internal/models"
 	"github.com/mcopland/spotifind/internal/repository"
 )
 
-type MetaHandler struct {
-	artistRepo   *repository.ArtistRepo
-	playlistRepo *repository.PlaylistRepo
+// MetaQuerier is satisfied by repository.PlaylistRepo.
+type MetaQuerier interface {
+	GetDistinctGenresForUser(ctx context.Context, userID int64) ([]string, error)
+	GetStats(ctx context.Context, userID int64) (*models.Stats, error)
 }
 
-func NewMetaHandler(artistRepo *repository.ArtistRepo, playlistRepo *repository.PlaylistRepo) *MetaHandler {
+type MetaHandler struct {
+	artistRepo   *repository.ArtistRepo
+	playlistRepo MetaQuerier
+}
+
+func NewMetaHandler(artistRepo *repository.ArtistRepo, playlistRepo MetaQuerier) *MetaHandler {
 	return &MetaHandler{artistRepo: artistRepo, playlistRepo: playlistRepo}
 }
 

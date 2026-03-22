@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -10,24 +11,55 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/mcopland/spotifind/internal/middleware"
 	"github.com/mcopland/spotifind/internal/models"
-	"github.com/mcopland/spotifind/internal/repository"
 	"github.com/mcopland/spotifind/internal/spotify"
 )
 
-type AuthHandler struct {
-	auth        *spotify.AuthClient
-	userRepo    *repository.UserRepo
-	jwtSecret   string
-	frontendURL string
+// SpotifyAuther is satisfied by *spotify.AuthClient.
+type SpotifyAuther interface {
+	AuthorizeURL(state string) string
+	ExchangeCode(ctx context.Context, code string) (*spotify.TokenResponse, error)
+	RefreshToken(ctx context.Context, refreshToken string) (*spotify.TokenResponse, error)
 }
 
-func NewAuthHandler(auth *spotify.AuthClient, userRepo *repository.UserRepo, jwtSecret, frontendURL string) *AuthHandler {
-	return &AuthHandler{
+// SpotifyUserFetcher is satisfied by *spotify.Client.
+type SpotifyUserFetcher interface {
+	GetCurrentUser(ctx context.Context) (*spotify.SpotifyUser, error)
+}
+
+// SpotifyClientFactory builds a SpotifyUserFetcher from token credentials.
+type SpotifyClientFactory func(accessToken, refreshToken string, expiresAt time.Time, auth SpotifyAuther) SpotifyUserFetcher
+
+// UserStore is satisfied by repository.UserRepo.
+type UserStore interface {
+	Upsert(ctx context.Context, u *models.User) (*models.User, error)
+	GetByID(ctx context.Context, id int64) (*models.User, error)
+}
+
+type AuthHandler struct {
+	auth          SpotifyAuther
+	userRepo      UserStore
+	jwtSecret     string
+	frontendURL   string
+	clientFactory SpotifyClientFactory
+}
+
+func NewAuthHandler(auth SpotifyAuther, userRepo UserStore, jwtSecret, frontendURL string) *AuthHandler {
+	h := &AuthHandler{
 		auth:        auth,
 		userRepo:    userRepo,
 		jwtSecret:   jwtSecret,
 		frontendURL: frontendURL,
 	}
+	h.clientFactory = func(accessToken, refreshToken string, expiresAt time.Time, a SpotifyAuther) SpotifyUserFetcher {
+		return spotify.NewClient(accessToken, refreshToken, expiresAt, a, 0, nil)
+	}
+	return h
+}
+
+// SetClientFactory overrides the factory used to build the Spotify client in Callback.
+// Intended for use in tests.
+func (h *AuthHandler) SetClientFactory(f SpotifyClientFactory) {
+	h.clientFactory = f
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +94,7 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := spotify.NewClient(tok.AccessToken, tok.RefreshToken, spotify.TokenExpiresAt(tok.ExpiresIn), h.auth, 0, nil)
+	client := h.clientFactory(tok.AccessToken, tok.RefreshToken, spotify.TokenExpiresAt(tok.ExpiresIn), h.auth)
 	spotifyUser, err := client.GetCurrentUser(r.Context())
 	if err != nil {
 		http.Error(w, "failed to get user profile", http.StatusInternalServerError)

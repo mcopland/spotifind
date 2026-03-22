@@ -160,7 +160,7 @@ func (r *TrackRepo) ListForUser(ctx context.Context, userID int64, f models.Trac
 		       t.created_at, t.updated_at, ust.saved_at,
 		       al.id, al.spotify_id, al.name, al.album_type, al.release_date, al.release_year, al.total_tracks, al.image_url, al.created_at, al.updated_at,
 		       COALESCE(array_agg(DISTINCT ar.name ORDER BY ar.name) FILTER (WHERE ar.id IS NOT NULL), '{}') AS artist_names,
-		       COALESCE(array_agg(DISTINCT ar.spotify_id ORDER BY ar.name) FILTER (WHERE ar.id IS NOT NULL), '{}') AS artist_spotify_ids
+		       COALESCE(array_agg(ar.spotify_id ORDER BY ar.name) FILTER (WHERE ar.id IS NOT NULL), '{}') AS artist_spotify_ids
 		FROM tracks t
 		JOIN user_saved_tracks ust ON t.id = ust.track_id
 		LEFT JOIN albums al ON al.id = t.album_id

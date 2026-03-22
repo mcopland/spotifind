@@ -28,16 +28,28 @@ var scopes = []string{
 }
 
 type AuthClient struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURI  string
+	ClientID      string
+	ClientSecret  string
+	RedirectURI   string
+	tokenEndpoint string
 }
 
 func NewAuthClient(clientID, clientSecret, redirectURI string) *AuthClient {
 	return &AuthClient{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURI:  redirectURI,
+		ClientID:      clientID,
+		ClientSecret:  clientSecret,
+		RedirectURI:   redirectURI,
+		tokenEndpoint: tokenURL,
+	}
+}
+
+// NewTestAuthClient creates an AuthClient that sends token requests to tokenEndpoint instead of the real Spotify API. Intended for use in tests.
+func NewTestAuthClient(clientID, clientSecret, redirectURI, tokenEndpoint string) *AuthClient {
+	return &AuthClient{
+		ClientID:      clientID,
+		ClientSecret:  clientSecret,
+		RedirectURI:   redirectURI,
+		tokenEndpoint: tokenEndpoint,
 	}
 }
 
@@ -58,6 +70,11 @@ type TokenResponse struct {
 	TokenType    string `json:"token_type"`
 }
 
+// TokenRefresher is satisfied by *AuthClient and allows NewClient to accept an interface.
+type TokenRefresher interface {
+	RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error)
+}
+
 func (a *AuthClient) ExchangeCode(ctx context.Context, code string) (*TokenResponse, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
@@ -76,7 +93,7 @@ func (a *AuthClient) RefreshToken(ctx context.Context, refreshToken string) (*To
 }
 
 func (a *AuthClient) requestToken(ctx context.Context, data url.Values) (*TokenResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.tokenEndpoint, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
 	}

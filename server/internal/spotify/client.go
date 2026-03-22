@@ -16,12 +16,12 @@ type Client struct {
 	accessToken  string
 	refreshToken string
 	expiresAt    time.Time
-	auth         *AuthClient
+	auth         TokenRefresher
 	userID       int64
 	onRefresh    func(accessToken, refreshToken string, expiresAt time.Time) error
 }
 
-func NewClient(accessToken, refreshToken string, expiresAt time.Time, auth *AuthClient, userID int64, onRefresh func(string, string, time.Time) error) *Client {
+func NewClient(accessToken, refreshToken string, expiresAt time.Time, auth TokenRefresher, userID int64, onRefresh func(string, string, time.Time) error) *Client {
 	return &Client{
 		apiBase:      defaultAPIBase,
 		accessToken:  accessToken,

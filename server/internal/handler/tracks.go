@@ -1,21 +1,26 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/mcopland/spotifind/internal/middleware"
 	"github.com/mcopland/spotifind/internal/models"
-	"github.com/mcopland/spotifind/internal/repository"
 )
 
-type TrackHandler struct {
-	trackRepo *repository.TrackRepo
+// TrackLister is satisfied by repository.TrackRepo.
+type TrackLister interface {
+	ListForUser(ctx context.Context, userID int64, f models.TrackFilters) (*models.PaginatedResult[models.Track], error)
 }
 
-func NewTrackHandler(trackRepo *repository.TrackRepo) *TrackHandler {
-	return &TrackHandler{trackRepo: trackRepo}
+type TrackHandler struct {
+	trackRepo TrackLister
+}
+
+func NewTrackHandler(repo TrackLister) *TrackHandler {
+	return &TrackHandler{trackRepo: repo}
 }
 
 func (h *TrackHandler) List(w http.ResponseWriter, r *http.Request) {
