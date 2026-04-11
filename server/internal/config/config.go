@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -18,7 +20,9 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	_ = godotenv.Load("../.env")
+	if err := godotenv.Load("../.env"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		slog.Warn("failed to load .env", "path", "../.env", "error", err)
+	}
 
 	cfg := &Config{
 		DatabaseURL:         os.Getenv("DATABASE_URL"),

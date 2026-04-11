@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 
@@ -11,7 +12,9 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load("../../.env")
+	if err := godotenv.Load("../.env"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		slog.Warn("failed to load .env", "path", "../.env", "error", err)
+	}
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
