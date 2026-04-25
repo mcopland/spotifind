@@ -50,10 +50,10 @@ func Load() (*Config, error) {
 		cfg.Port = "8080"
 	}
 	if cfg.FrontendURL == "" {
-		cfg.FrontendURL = "http://localhost:5173"
+		cfg.FrontendURL = "http://127.0.0.1:5173"
 	}
 	if cfg.SpotifyRedirectURI == "" {
-		cfg.SpotifyRedirectURI = fmt.Sprintf("http://localhost:%s/api/auth/callback", cfg.Port)
+		cfg.SpotifyRedirectURI = cfg.FrontendURL + "/api/auth/callback"
 	}
 
 	return cfg, nil
