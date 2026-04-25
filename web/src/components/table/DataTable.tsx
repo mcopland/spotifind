@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { type ReactNode } from "react";
 
 export type SortingState = { id: string; desc: boolean }[];
@@ -9,6 +9,7 @@ export interface ColumnDef<T> {
   accessorKey?: string;
   accessorFn?: (row: T) => unknown;
   enableSorting?: boolean;
+  numeric?: boolean;
   cell?: (ctx: { row: { original: T }; getValue: () => unknown }) => ReactNode;
 }
 
@@ -39,41 +40,83 @@ export default function DataTable<T>({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-[#1DB954] border-t-transparent rounded-full animate-spin" />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: 240,
+        }}
+      >
+        <div
+          style={{
+            width: 22,
+            height: 22,
+            border: "2px solid var(--acc)",
+            borderTopColor: "transparent",
+            borderRadius: "50%",
+            animation: "spin 0.7s linear infinite",
+          }}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div style={{ overflowX: "auto" }}>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "separate",
+          borderSpacing: 0,
+          fontSize: 12,
+        }}
+      >
         <thead>
-          <tr className="border-b border-gray-800">
-            {columns.map(col => (
+          <tr>
+            {columns.map((col) => (
               <th
                 key={col.id}
-                className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide ${
-                  col.enableSorting ? "cursor-pointer select-none hover:text-gray-300" : ""
-                }`}
                 onClick={col.enableSorting ? () => { handleSort(col.id); } : undefined}
+                style={{
+                  position: "sticky",
+                  top: 0,
+                  background: "var(--bg-1)",
+                  fontWeight: 500,
+                  color: "var(--fg-2)",
+                  textAlign: col.numeric ? "right" : "left",
+                  padding: `var(--cell-py) var(--cell-px)`,
+                  height: 28,
+                  borderBottom: "1px solid var(--hair)",
+                  fontSize: 11,
+                  whiteSpace: "nowrap",
+                  userSelect: "none",
+                  cursor: col.enableSorting ? "pointer" : undefined,
+                }}
               >
-                <div className="flex items-center gap-1">
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
                   {col.header}
                   {col.enableSorting && (
-                    <span className="text-gray-600">
+                    <span style={{ color: "var(--fg-3)", display: "inline-flex" }}>
                       {sorting?.[0]?.id === col.id ? (
                         sorting[0].desc ? (
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown size={10} />
                         ) : (
-                          <ChevronUp className="w-3 h-3" />
+                          <ChevronUp size={10} />
                         )
                       ) : (
-                        <ChevronsUpDown className="w-3 h-3" />
+                        <ChevronsUpDown size={10} />
                       )}
                     </span>
                   )}
-                </div>
+                </span>
               </th>
             ))}
           </tr>
@@ -81,7 +124,14 @@ export default function DataTable<T>({
         <tbody>
           {data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-16 text-center text-gray-600">
+              <td
+                colSpan={columns.length}
+                style={{
+                  padding: "48px 16px",
+                  textAlign: "center",
+                  color: "var(--fg-3)",
+                }}
+              >
                 No results
               </td>
             </tr>
@@ -89,19 +139,47 @@ export default function DataTable<T>({
             data.map((row, i) => (
               <tr
                 key={i}
-                className="border-b border-gray-900 hover:bg-gray-900/50 transition-colors"
+                onMouseEnter={(e) => {
+                  const cells = (e.currentTarget as HTMLTableRowElement).querySelectorAll("td");
+                  cells.forEach((td) => {
+                    (td as HTMLElement).style.background = "var(--bg-1)";
+                  });
+                }}
+                onMouseLeave={(e) => {
+                  const cells = (e.currentTarget as HTMLTableRowElement).querySelectorAll("td");
+                  cells.forEach((td) => {
+                    (td as HTMLElement).style.background = "";
+                  });
+                }}
               >
-                {columns.map(col => {
+                {columns.map((col) => {
                   const value = col.accessorFn
                     ? col.accessorFn(row)
                     : col.accessorKey
                       ? (row as Record<string, unknown>)[col.accessorKey]
                       : undefined;
                   return (
-                    <td key={col.id} className="px-4 py-2.5 text-gray-300">
+                    <td
+                      key={col.id}
+                      style={{
+                        padding: `var(--cell-py) var(--cell-px)`,
+                        height: "var(--row-h)",
+                        color: "var(--fg)",
+                        verticalAlign: "middle",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: 360,
+                        textAlign: col.numeric ? "right" : "left",
+                      }}
+                    >
                       {col.cell
                         ? col.cell({ row: { original: row }, getValue: () => value })
-                        : (typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "")}
+                        : typeof value === "string" ||
+                            typeof value === "number" ||
+                            typeof value === "boolean"
+                          ? String(value)
+                          : ""}
                     </td>
                   );
                 })}

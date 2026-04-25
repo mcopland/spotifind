@@ -1,67 +1,176 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Search } from "lucide-react";
-import { useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { logout } from "../../api/auth";
+import { Search } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { useFilterStore } from "../../stores/filterStore";
-import SyncButton from "../sync/SyncButton";
+import { useSyncStatus } from "../../hooks/useSyncStatus";
+import Breadcrumbs from "./Breadcrumbs";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const setSearch = useFilterStore(s => s.setSearch);
-  const search = useFilterStore(s => s.search);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const { syncJob, isRunning } = useSyncStatus();
 
-  function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { setSearch(val); }, 300);
-    e.target.value = val;
+  const initials = user?.display_name
+    ? user.display_name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "?";
+
+  function syncLabel() {
+    if (!syncJob || syncJob.status === "none") return null;
+    if (isRunning) return "Syncing…";
+    if (syncJob.status === "completed") return "Synced";
+    if (syncJob.status === "failed") return "Sync failed";
+    return null;
   }
 
-  async function handleLogout() {
-    await logout();
-    queryClient.clear();
-    void navigate("/login");
-  }
+  const label = syncLabel();
 
   return (
-    <header className="flex items-center justify-between px-4 h-14 border-b border-gray-800 bg-[#0f0f0f] sticky top-0 z-50">
-      <span className="text-lg font-bold text-white">SpotiFind</span>
-
-      <div className="flex-1 max-w-md mx-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search..."
-            defaultValue={search}
-            onChange={handleSearch}
-            className="w-full pl-9 pr-4 py-1.5 bg-gray-900 border border-gray-700 rounded-full text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500"
-          />
-        </div>
+    <header
+      style={{
+        gridColumn: "1 / -1",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "0 12px",
+        borderBottom: "1px solid var(--hair)",
+        background: "var(--bg-1)",
+        height: 40,
+        position: "relative",
+        zIndex: 5,
+      }}
+    >
+      {/* Brand */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          fontWeight: 600,
+          fontSize: 13,
+          letterSpacing: "-0.01em",
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            width: 14,
+            height: 14,
+            borderRadius: 3,
+            background: `
+              radial-gradient(circle at 30% 30%, var(--acc) 0 35%, transparent 36%),
+              radial-gradient(circle at 70% 70%, var(--acc-ink) 0 30%, transparent 31%),
+              var(--acc-soft)`,
+            border: "1px solid var(--hair-strong)",
+          }}
+        />
+        <span>SpotiFind</span>
+        <span style={{ color: "var(--fg-2)", fontWeight: 400 }}>
+          · your library, as a database
+        </span>
       </div>
 
-      <div className="flex items-center gap-3">
-        <SyncButton />
-        {user && (
-          <div className="flex items-center gap-2">
-            {user.avatar_url && (
-              <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full" />
-            )}
-            <span className="text-sm text-gray-300">{user.display_name}</span>
-          </div>
-        )}
-        <button
-          onClick={() => { void handleLogout(); }}
-          className="p-1.5 text-gray-500 hover:text-white transition-colors"
-          title="Logout"
+      <div style={{ width: 16 }} />
+
+      <Breadcrumbs />
+
+      <div style={{ flex: 1 }} />
+
+      {/* Cmd+K search placeholder */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "4px 8px",
+          border: "1px solid var(--hair)",
+          borderRadius: "var(--radius-sm)",
+          color: "var(--fg-2)",
+          background: "var(--bg)",
+          minWidth: 220,
+          fontSize: 12,
+          cursor: "text",
+        }}
+      >
+        <Search size={12} style={{ color: "var(--fg-3)" }} />
+        <span>Search tracks, artists, albums…</span>
+        <kbd
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            color: "var(--fg-3)",
+            marginLeft: "auto",
+            border: "1px solid var(--hair)",
+            padding: "0 4px",
+            borderRadius: 3,
+          }}
         >
-          <LogOut className="w-4 h-4" />
-        </button>
+          ⌘K
+        </kbd>
+      </div>
+
+      {/* Sync pill */}
+      {label && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "3px 8px",
+            fontSize: 11,
+            color: "var(--fg-1)",
+            border: "1px solid var(--hair)",
+            borderRadius: 999,
+            background: "var(--bg)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: isRunning ? "var(--warn)" : "var(--ok)",
+              boxShadow: isRunning
+                ? "0 0 0 3px color-mix(in oklch, var(--warn) 15%, transparent)"
+                : "0 0 0 3px color-mix(in oklch, var(--ok) 15%, transparent)",
+            }}
+          />
+          {label}
+        </div>
+      )}
+
+      <ThemeToggle />
+
+      {/* Avatar */}
+      <div
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          background: "var(--acc-soft)",
+          color: "var(--acc-ink)",
+          fontSize: 10,
+          fontWeight: 600,
+          display: "grid",
+          placeItems: "center",
+          border: "1px solid var(--hair)",
+          flexShrink: 0,
+          overflow: "hidden",
+        }}
+        title={user?.display_name}
+      >
+        {user?.avatar_url ? (
+          <img
+            src={user.avatar_url}
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          initials
+        )}
       </div>
     </header>
   );

@@ -18,11 +18,28 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <p className="text-red-400">Something went wrong.</p>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: 240,
+            gap: 12,
+          }}
+        >
+          <p style={{ color: "var(--err)", fontSize: 13 }}>Something went wrong.</p>
           <button
             onClick={() => { window.location.reload(); }}
-            className="px-4 py-2 bg-[#1DB954] text-black text-sm font-medium rounded hover:bg-[#1ed760] transition-colors"
+            style={{
+              padding: "4px 14px",
+              background: "var(--acc)",
+              color: "black",
+              fontSize: 12,
+              fontWeight: 500,
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+            }}
           >
             Reload
           </button>

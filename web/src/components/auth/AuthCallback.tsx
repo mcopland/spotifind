@@ -12,8 +12,18 @@ export default function AuthCallback() {
   }, [navigate, queryClient]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
-      <p className="text-gray-400">Completing login...</p>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--bg)",
+        color: "var(--fg-2)",
+        fontSize: 13,
+      }}
+    >
+      Completing login…
     </div>
   );
 }

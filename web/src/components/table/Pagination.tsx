@@ -9,31 +9,59 @@ interface PaginationProps {
 
 export default function Pagination({ page, pageSize, total, onPageChange }: PaginationProps) {
   const totalPages = Math.ceil(total / pageSize);
-  const from = (page - 1) * pageSize + 1;
+  const from = total > 0 ? (page - 1) * pageSize + 1 : 0;
   const to = Math.min(page * pageSize, total);
 
+  const btnStyle = (disabled: boolean) => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "4px 9px",
+    height: 26,
+    border: "1px solid var(--hair)",
+    borderRadius: "var(--radius-sm)",
+    background: "var(--bg)",
+    color: "var(--fg-1)",
+    fontSize: 12,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.3 : 1,
+  });
+
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
-      <span className="text-xs text-gray-500">
-        {total > 0 ? `${String(from)}-${String(to)} of ${total.toLocaleString()}` : "0 results"}
+    <div
+      style={{
+        padding: "12px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderTop: "1px solid var(--hair)",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          color: "var(--fg-2)",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {total > 0
+          ? `Showing ${String(from)}–${String(to)} of ${total.toLocaleString()}`
+          : "0 results"}
       </span>
-      <div className="flex items-center gap-1">
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <button
           onClick={() => { onPageChange(page - 1); }}
           disabled={page <= 1}
-          className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          style={btnStyle(page <= 1)}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft size={13} /> Prev
         </button>
-        <span className="px-3 py-1 text-xs text-gray-400">
-          {page} / {totalPages || 1}
-        </span>
         <button
           onClick={() => { onPageChange(page + 1); }}
           disabled={page >= totalPages}
-          className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          style={btnStyle(page >= totalPages)}
         >
-          <ChevronRight className="w-4 h-4" />
+          Next <ChevronRight size={13} />
         </button>
       </div>
     </div>
