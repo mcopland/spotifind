@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -35,12 +36,15 @@ type UserStore interface {
 	GetByID(ctx context.Context, id int64) (*models.User, error)
 }
 
+const stateMaxAge = 10 * time.Minute
+
 type AuthHandler struct {
 	auth          SpotifyAuther
 	userRepo      UserStore
 	jwtSecret     string
 	frontendURL   string
 	clientFactory SpotifyClientFactory
+	pendingStates sync.Map
 }
 
 func NewAuthHandler(auth SpotifyAuther, userRepo UserStore, jwtSecret, frontendURL string) *AuthHandler {
@@ -63,21 +67,22 @@ func (h *AuthHandler) SetClientFactory(f SpotifyClientFactory) {
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	state := randomState()
-	http.SetCookie(w, &http.Cookie{
-		Name:     "oauth_state",
-		Value:    state,
-		MaxAge:   600,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Path:     "/",
+	h.pendingStates.Range(func(key, value any) bool {
+		if time.Since(value.(time.Time)) > stateMaxAge {
+			h.pendingStates.Delete(key)
+		}
+		return true
 	})
+
+	state := randomState()
+	h.pendingStates.Store(state, time.Now())
 	http.Redirect(w, r, h.auth.AuthorizeURL(state), http.StatusFound)
 }
 
 func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
-	stateCookie, err := r.Cookie("oauth_state")
-	if err != nil || stateCookie.Value != r.URL.Query().Get("state") {
+	state := r.URL.Query().Get("state")
+	created, ok := h.pendingStates.LoadAndDelete(state)
+	if !ok || time.Since(created.(time.Time)) > stateMaxAge {
 		http.Error(w, "invalid state", http.StatusBadRequest)
 		return
 	}
@@ -138,12 +143,6 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
-	})
-	http.SetCookie(w, &http.Cookie{
-		Name:   "oauth_state",
-		Value:  "",
-		MaxAge: -1,
-		Path:   "/",
 	})
 
 	http.Redirect(w, r, h.frontendURL, http.StatusFound)

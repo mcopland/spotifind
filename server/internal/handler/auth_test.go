@@ -28,9 +28,13 @@ type stubSpotifyAuth struct {
 	authorizeURL string
 	token        *spotify.TokenResponse
 	err          error
+	lastState    string
 }
 
-func (s *stubSpotifyAuth) AuthorizeURL(_ string) string { return s.authorizeURL }
+func (s *stubSpotifyAuth) AuthorizeURL(state string) string {
+	s.lastState = state
+	return s.authorizeURL
+}
 func (s *stubSpotifyAuth) ExchangeCode(_ context.Context, _ string) (*spotify.TokenResponse, error) {
 	return s.token, s.err
 }
@@ -51,8 +55,19 @@ func (s *stubUserStore) GetByID(_ context.Context, _ int64) (*models.User, error
 	return s.user, s.err
 }
 
-func newTestAuthHandler(auth handler.SpotifyAuther, us handler.UserStore) *handler.AuthHandler {
+func newTestAuthHandler(auth *stubSpotifyAuth, us handler.UserStore) *handler.AuthHandler {
 	return handler.NewAuthHandler(auth, us, "test-secret", "http://localhost:3000/callback")
+}
+
+func loginAndGetState(t *testing.T, h *handler.AuthHandler, auth *stubSpotifyAuth) string {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/auth/login", nil)
+	rr := httptest.NewRecorder()
+	h.Login(rr, req)
+	if auth.lastState == "" {
+		t.Fatal("Login did not generate a state")
+	}
+	return auth.lastState
 }
 
 func TestAuthHandler_Login_Redirect(t *testing.T) {
@@ -66,18 +81,8 @@ func TestAuthHandler_Login_Redirect(t *testing.T) {
 	if rr.Code != http.StatusFound {
 		t.Errorf("expected 302, got %d", rr.Code)
 	}
-
-	var found bool
-	for _, c := range rr.Result().Cookies() {
-		if c.Name == "oauth_state" {
-			found = true
-			if c.Value == "" {
-				t.Error("oauth_state cookie must not be empty")
-			}
-		}
-	}
-	if !found {
-		t.Error("oauth_state cookie not set")
+	if auth.lastState == "" {
+		t.Error("expected state to be generated")
 	}
 }
 
@@ -152,7 +157,7 @@ func TestAuthHandler_Me_RepoError(t *testing.T) {
 	}
 }
 
-func TestAuthHandler_Callback_MissingStateCookie(t *testing.T) {
+func TestAuthHandler_Callback_UnknownState(t *testing.T) {
 	h := newTestAuthHandler(&stubSpotifyAuth{}, &stubUserStore{})
 	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=abc&code=xyz", nil)
 	rr := httptest.NewRecorder()
@@ -165,9 +170,10 @@ func TestAuthHandler_Callback_MissingStateCookie(t *testing.T) {
 }
 
 func TestAuthHandler_Callback_StateMismatch(t *testing.T) {
-	h := newTestAuthHandler(&stubSpotifyAuth{}, &stubUserStore{})
+	auth := &stubSpotifyAuth{}
+	h := newTestAuthHandler(auth, &stubUserStore{})
+	loginAndGetState(t, h, auth)
 	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=wrong&code=xyz", nil)
-	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "correct"})
 	rr := httptest.NewRecorder()
 
 	h.Callback(rr, req)
@@ -178,9 +184,10 @@ func TestAuthHandler_Callback_StateMismatch(t *testing.T) {
 }
 
 func TestAuthHandler_Callback_MissingCode(t *testing.T) {
-	h := newTestAuthHandler(&stubSpotifyAuth{}, &stubUserStore{})
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=mystate", nil)
-	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "mystate"})
+	auth := &stubSpotifyAuth{}
+	h := newTestAuthHandler(auth, &stubUserStore{})
+	state := loginAndGetState(t, h, auth)
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state="+state, nil)
 	rr := httptest.NewRecorder()
 
 	h.Callback(rr, req)
@@ -193,8 +200,8 @@ func TestAuthHandler_Callback_MissingCode(t *testing.T) {
 func TestAuthHandler_Callback_ExchangeCodeError(t *testing.T) {
 	auth := &stubSpotifyAuth{err: errors.New("exchange failed")}
 	h := newTestAuthHandler(auth, &stubUserStore{})
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=s&code=c", nil)
-	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "s"})
+	state := loginAndGetState(t, h, auth)
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state="+state+"&code=c", nil)
 	rr := httptest.NewRecorder()
 
 	h.Callback(rr, req)
@@ -210,8 +217,8 @@ func TestAuthHandler_Callback_GetCurrentUserError(t *testing.T) {
 	h.SetClientFactory(func(_ string, _ string, _ time.Time, _ handler.SpotifyAuther) handler.SpotifyUserFetcher {
 		return &stubUserFetcher{err: errors.New("spotify API error")}
 	})
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=s&code=c", nil)
-	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "s"})
+	state := loginAndGetState(t, h, auth)
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state="+state+"&code=c", nil)
 	rr := httptest.NewRecorder()
 
 	h.Callback(rr, req)
@@ -227,8 +234,8 @@ func TestAuthHandler_Callback_UserUpsertError(t *testing.T) {
 	h.SetClientFactory(func(_ string, _ string, _ time.Time, _ handler.SpotifyAuther) handler.SpotifyUserFetcher {
 		return &stubUserFetcher{user: &spotify.SpotifyUser{ID: "sp1", DisplayName: "Test"}}
 	})
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=s&code=c", nil)
-	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "s"})
+	state := loginAndGetState(t, h, auth)
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state="+state+"&code=c", nil)
 	rr := httptest.NewRecorder()
 
 	h.Callback(rr, req)
@@ -244,8 +251,8 @@ func TestAuthHandler_Callback_Success(t *testing.T) {
 	h.SetClientFactory(func(_ string, _ string, _ time.Time, _ handler.SpotifyAuther) handler.SpotifyUserFetcher {
 		return &stubUserFetcher{user: &spotify.SpotifyUser{ID: "sp1", DisplayName: "Alice"}}
 	})
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=s&code=c", nil)
-	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "s"})
+	state := loginAndGetState(t, h, auth)
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state="+state+"&code=c", nil)
 	rr := httptest.NewRecorder()
 
 	h.Callback(rr, req)
@@ -279,8 +286,8 @@ func TestAuthHandler_Callback_Success_WithAvatar(t *testing.T) {
 			}{{URL: "http://img.example.com/avatar.jpg"}},
 		}}
 	})
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=s&code=c", nil)
-	req.AddCookie(&http.Cookie{Name: "oauth_state", Value: "s"})
+	state := loginAndGetState(t, h, auth)
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state="+state+"&code=c", nil)
 	rr := httptest.NewRecorder()
 
 	h.Callback(rr, req)
