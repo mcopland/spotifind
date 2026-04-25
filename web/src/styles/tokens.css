@@ -1,0 +1,57 @@
+/* ---------- SpotiFind design tokens ---------- */
+:root {
+  /* light ("cool") is default */
+  --bg: oklch(0.99 0.004 230);
+  --bg-1: oklch(0.975 0.006 230);
+  --bg-2: oklch(0.955 0.008 230);
+  --bg-3: oklch(0.93 0.01 230);
+  --hair: oklch(0.895 0.012 230);
+  --hair-strong: oklch(0.83 0.015 230);
+  --fg: oklch(0.20 0.015 250);
+  --fg-1: oklch(0.36 0.014 250);
+  --fg-2: oklch(0.52 0.012 250);
+  --fg-3: oklch(0.68 0.01 250);
+
+  /* accent — locked to #00DB4D */
+  --acc: #00DB4D;
+  --acc-soft: color-mix(in oklch, #00DB4D 16%, var(--bg));
+  --acc-ink: color-mix(in oklch, #00DB4D 65%, black);
+
+  /* status */
+  --ok: oklch(0.62 0.14 150);
+  --warn: oklch(0.72 0.14 75);
+  --err: oklch(0.58 0.18 25);
+  --info: oklch(0.58 0.14 240);
+
+  /* type — serif UI + mono for data */
+  --font-ui: 'Instrument Serif', ui-serif, Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* density — compact */
+  --row-h: 32px;
+  --cell-px: 12px;
+  --cell-py: 6px;
+  --sidebar-w: 232px;
+  --panel-w: 280px;
+
+  /* misc */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow-pop: 0 1px 2px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+}
+
+/* dark theme */
+[data-theme="dark"] {
+  --bg: oklch(0.17 0.008 260);
+  --bg-1: oklch(0.20 0.009 260);
+  --bg-2: oklch(0.23 0.010 260);
+  --bg-3: oklch(0.27 0.012 260);
+  --hair: oklch(0.30 0.012 260);
+  --hair-strong: oklch(0.38 0.014 260);
+  --fg: oklch(0.96 0.005 260);
+  --fg-1: oklch(0.84 0.008 260);
+  --fg-2: oklch(0.66 0.010 260);
+  --fg-3: oklch(0.52 0.012 260);
+  --acc-soft: color-mix(in oklch, #00DB4D 22%, var(--bg));
+  --acc-ink: color-mix(in oklch, #00DB4D 85%, white);
+}
