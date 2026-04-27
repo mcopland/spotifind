@@ -134,10 +134,10 @@ const columns = buildColumns();
 
 export default function ArtistsPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [localSearch, setLocalSearch] = useState("");
+  const [localSearch, setLocalSearch] = useState(() => useFilterStore.getState().artistsSearch);
   const searchRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const { search, setSearch, genres, setGenres, page, pageSize, setPage } = useFilterStore();
+  const { artistsSearch, setArtistsSearch, genres, setGenres, page, pageSize, setPage } = useFilterStore();
 
   const { data: genreOptions = [] } = useQuery({
     queryKey: ["genres"],
@@ -154,16 +154,16 @@ export default function ArtistsPage() {
   const sortDir = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined;
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["artists", { search, genres, page, pageSize, sortBy, sortDir }],
+    queryKey: ["artists", { artistsSearch, genres, page, pageSize, sortBy, sortDir }],
     queryFn: () =>
-      getArtists({ search, genres, page, page_size: pageSize, sort_by: sortBy, sort_dir: sortDir }),
+      getArtists({ search: artistsSearch, genres, page, page_size: pageSize, sort_by: sortBy, sort_dir: sortDir }),
   });
 
   function handleSearch(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setLocalSearch(val);
     if (searchRef.current) clearTimeout(searchRef.current);
-    searchRef.current = setTimeout(() => { setSearch(val); }, 300);
+    searchRef.current = setTimeout(() => { setArtistsSearch(val); }, 300);
   }
 
   const rows = (data?.items ?? []).map((r, i) => ({
@@ -305,12 +305,12 @@ export default function ArtistsPage() {
           ))}
         </FilterChip>
 
-        {(genres.length > 0 || search) && (
+        {(genres.length > 0 || artistsSearch) && (
           <button
             onClick={() => {
               setGenres([]);
               setLocalSearch("");
-              setSearch("");
+              setArtistsSearch("");
             }}
             style={{
               fontSize: 11.5,

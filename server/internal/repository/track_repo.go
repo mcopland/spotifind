@@ -66,9 +66,17 @@ func (r *TrackRepo) ListForUser(ctx context.Context, userID int64, f models.Trac
 	where := []string{"ust.user_id = $1"}
 	idx := 2
 
-	if f.Search != "" {
-		where = append(where, fmt.Sprintf("(t.name ILIKE $%d OR al.name ILIKE $%d)", idx, idx))
-		args = append(args, "%"+f.Search+"%")
+	for _, token := range strings.Fields(f.Search) {
+		where = append(where, fmt.Sprintf(`(
+			t.name ILIKE $%d
+			OR al.name ILIKE $%d
+			OR EXISTS (
+				SELECT 1 FROM track_artists ta_s
+				JOIN artists ar_s ON ar_s.id = ta_s.artist_id
+				WHERE ta_s.track_id = t.id AND ar_s.name ILIKE $%d
+			)
+		)`, idx, idx, idx))
+		args = append(args, "%"+token+"%")
 		idx++
 	}
 	if len(f.Genres) > 0 {

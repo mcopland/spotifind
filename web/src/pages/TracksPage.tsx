@@ -257,12 +257,12 @@ function buildColumns(go: (path: string, state?: Record<string, string>) => void
 
 export default function TracksPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [localSearch, setLocalSearch] = useState("");
+  const [localSearch, setLocalSearch] = useState(() => useFilterStore.getState().tracksSearch);
   const searchRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const {
-    search,
-    setSearch,
+    tracksSearch,
+    setTracksSearch,
     genres,
     setGenres,
     yearMin,
@@ -299,11 +299,11 @@ export default function TracksPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: [
       "tracks",
-      { search, genres, yearMin, yearMax, popularityMin, popularityMax, explicit, page, pageSize, sortBy, sortDir },
+      { tracksSearch, genres, yearMin, yearMax, popularityMin, popularityMax, explicit, page, pageSize, sortBy, sortDir },
     ],
     queryFn: () =>
       getTracks({
-        search,
+        search: tracksSearch,
         genres,
         year_min: yearMin,
         year_max: yearMax,
@@ -321,7 +321,7 @@ export default function TracksPage() {
     const val = e.target.value;
     setLocalSearch(val);
     if (searchRef.current) clearTimeout(searchRef.current);
-    searchRef.current = setTimeout(() => { setSearch(val); }, 300);
+    searchRef.current = setTimeout(() => { setTracksSearch(val); }, 300);
   }
 
   // navigation helper using window.history (avoids prop drilling)
@@ -604,7 +604,7 @@ export default function TracksPage() {
               setPopularityMax(undefined);
               setExplicit(undefined);
               setLocalSearch("");
-              setSearch("");
+              setTracksSearch("");
             }}
             style={{
               fontSize: 11.5,
