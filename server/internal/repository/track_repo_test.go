@@ -5,10 +5,35 @@ package repository_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/mcopland/spotifind/internal/models"
 	"github.com/mcopland/spotifind/internal/repository"
 )
+
+func setTrackDuration(t *testing.T, trackID int64, durationMs int) {
+	t.Helper()
+	_, err := testDB.Exec(context.Background(), `UPDATE tracks SET duration_ms = $1 WHERE id = $2`, durationMs, trackID)
+	if err != nil {
+		t.Fatalf("set duration on track %d: %v", trackID, err)
+	}
+}
+
+func setUserSavedAt(t *testing.T, userID, trackID int64, savedAt time.Time) {
+	t.Helper()
+	_, err := testDB.Exec(context.Background(), `UPDATE user_saved_tracks SET saved_at = $1 WHERE user_id = $2 AND track_id = $3`, savedAt, userID, trackID)
+	if err != nil {
+		t.Fatalf("set saved_at on user %d track %d: %v", userID, trackID, err)
+	}
+}
+
+func setArtistMetrics(t *testing.T, artistID int64, popularity, followers int) {
+	t.Helper()
+	_, err := testDB.Exec(context.Background(), `UPDATE artists SET popularity = $1, followers = $2 WHERE id = $3`, popularity, followers, artistID)
+	if err != nil {
+		t.Fatalf("set artist metrics on %d: %v", artistID, err)
+	}
+}
 
 func TestTrackRepo_ListForUser_ReturnsInserted(t *testing.T) {
 	ctx := context.Background()
@@ -265,6 +290,199 @@ func TestTrackRepo_ListForUser_SearchFilter_TokensMatchAcrossFields(t *testing.T
 	}
 	if len(result.Items) == 1 && result.Items[0].SpotifyID != track.SpotifyID {
 		t.Errorf("SpotifyID: got %q, want %q", result.Items[0].SpotifyID, track.SpotifyID)
+	}
+}
+
+func TestTrackRepo_ListForUser_DurationFilter(t *testing.T) {
+	ctx := context.Background()
+	user := insertTestUser(t, "track_duration_user_1")
+	album := insertTestAlbum(t, "track_duration_album_1", 2020)
+	short := insertTestTrack(t, "track_duration_tr_short", album.ID, false)
+	medium := insertTestTrack(t, "track_duration_tr_medium", album.ID, false)
+	long := insertTestTrack(t, "track_duration_tr_long", album.ID, false)
+	setTrackDuration(t, short.ID, 60_000)
+	setTrackDuration(t, medium.ID, 180_000)
+	setTrackDuration(t, long.ID, 360_000)
+
+	trackRepo := repository.NewTrackRepo(testDB)
+	for _, tr := range []*models.Track{short, medium, long} {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
+		}
+	}
+
+	min := 120_000
+	max := 240_000
+	result, err := trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{DurationMin: &min, DurationMax: &max})
+	if err != nil {
+		t.Fatalf("ListForUser duration range failed: %v", err)
+	}
+	if result.Total != 1 {
+		t.Errorf("Total: got %d, want 1", result.Total)
+	}
+	if len(result.Items) == 1 && result.Items[0].SpotifyID != medium.SpotifyID {
+		t.Errorf("SpotifyID: got %q, want %q", result.Items[0].SpotifyID, medium.SpotifyID)
+	}
+}
+
+func TestTrackRepo_ListForUser_SavedAtFilter(t *testing.T) {
+	ctx := context.Background()
+	user := insertTestUser(t, "track_savedat_user_1")
+	album := insertTestAlbum(t, "track_savedat_album_1", 2020)
+	old := insertTestTrack(t, "track_savedat_tr_old", album.ID, false)
+	mid := insertTestTrack(t, "track_savedat_tr_mid", album.ID, false)
+	recent := insertTestTrack(t, "track_savedat_tr_recent", album.ID, false)
+
+	trackRepo := repository.NewTrackRepo(testDB)
+	for _, tr := range []*models.Track{old, mid, recent} {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
+		}
+	}
+	setUserSavedAt(t, user.ID, old.ID, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+	setUserSavedAt(t, user.ID, mid.ID, time.Date(2022, 6, 1, 0, 0, 0, 0, time.UTC))
+	setUserSavedAt(t, user.ID, recent.ID, time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC))
+
+	min := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	max := time.Date(2023, 12, 31, 23, 59, 59, 0, time.UTC)
+	result, err := trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{SavedAtMin: &min, SavedAtMax: &max})
+	if err != nil {
+		t.Fatalf("ListForUser saved_at range failed: %v", err)
+	}
+	if result.Total != 1 {
+		t.Errorf("Total: got %d, want 1", result.Total)
+	}
+	if len(result.Items) == 1 && result.Items[0].SpotifyID != mid.SpotifyID {
+		t.Errorf("SpotifyID: got %q, want %q", result.Items[0].SpotifyID, mid.SpotifyID)
+	}
+}
+
+func TestTrackRepo_ListForUser_ArtistPopularityAndFollowersFilters(t *testing.T) {
+	ctx := context.Background()
+	user := insertTestUser(t, "track_artmetrics_user_1")
+	album := insertTestAlbum(t, "track_artmetrics_album_1", 2020)
+	smallArtist := insertTestArtist(t, "track_artmetrics_artist_small", nil)
+	bigArtist := insertTestArtist(t, "track_artmetrics_artist_big", nil)
+	setArtistMetrics(t, smallArtist.ID, 20, 1_000)
+	setArtistMetrics(t, bigArtist.ID, 90, 5_000_000)
+
+	trackBySmall := insertTestTrack(t, "track_artmetrics_tr_small", album.ID, false)
+	trackByBig := insertTestTrack(t, "track_artmetrics_tr_big", album.ID, false)
+	trackRepo := repository.NewTrackRepo(testDB)
+	if err := trackRepo.LinkArtist(ctx, trackBySmall.ID, smallArtist.ID); err != nil {
+		t.Fatalf("LinkArtist small failed: %v", err)
+	}
+	if err := trackRepo.LinkArtist(ctx, trackByBig.ID, bigArtist.ID); err != nil {
+		t.Fatalf("LinkArtist big failed: %v", err)
+	}
+	for _, tr := range []*models.Track{trackBySmall, trackByBig} {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
+		}
+	}
+
+	popMin := 80
+	result, err := trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{ArtistPopularityMin: &popMin})
+	if err != nil {
+		t.Fatalf("ListForUser artist popularity filter failed: %v", err)
+	}
+	if result.Total != 1 || (len(result.Items) == 1 && result.Items[0].SpotifyID != trackByBig.SpotifyID) {
+		t.Errorf("artist_popularity_min=80: got %d items, want 1 (big)", result.Total)
+	}
+
+	folMax := 10_000
+	result, err = trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{ArtistFollowersMax: &folMax})
+	if err != nil {
+		t.Fatalf("ListForUser artist followers filter failed: %v", err)
+	}
+	if result.Total != 1 || (len(result.Items) == 1 && result.Items[0].SpotifyID != trackBySmall.SpotifyID) {
+		t.Errorf("artist_followers_max=10000: got %d items, want 1 (small)", result.Total)
+	}
+}
+
+func TestTrackRepo_AudioFeatures_UpsertAndFilterAndSort(t *testing.T) {
+	ctx := context.Background()
+	user := insertTestUser(t, "track_af_user_1")
+	album := insertTestAlbum(t, "track_af_album_1", 2020)
+	slow := insertTestTrack(t, "track_af_tr_slow", album.ID, false)
+	fast := insertTestTrack(t, "track_af_tr_fast", album.ID, false)
+	uncategorized := insertTestTrack(t, "track_af_tr_unset", album.ID, false)
+
+	trackRepo := repository.NewTrackRepo(testDB)
+	for _, tr := range []*models.Track{slow, fast, uncategorized} {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
+		}
+	}
+
+	floatPtr := func(v float64) *float64 { return &v }
+	intPtr := func(v int) *int { return &v }
+
+	err := trackRepo.UpsertAudioFeatures(ctx, []repository.AudioFeaturesRow{
+		{
+			SpotifyID: slow.SpotifyID, Tempo: floatPtr(80), Key: intPtr(0), Mode: intPtr(1),
+			TimeSignature: intPtr(4), Energy: floatPtr(0.2), Danceability: floatPtr(0.3),
+			Valence: floatPtr(0.4), Acousticness: floatPtr(0.5), Instrumentalness: floatPtr(0.1),
+			Liveness: floatPtr(0.1), Speechiness: floatPtr(0.05), Loudness: floatPtr(-12),
+		},
+		{
+			SpotifyID: fast.SpotifyID, Tempo: floatPtr(160), Key: intPtr(7), Mode: intPtr(0),
+			TimeSignature: intPtr(3), Energy: floatPtr(0.9), Danceability: floatPtr(0.8),
+			Valence: floatPtr(0.7), Acousticness: floatPtr(0.05), Instrumentalness: floatPtr(0.0),
+			Liveness: floatPtr(0.4), Speechiness: floatPtr(0.06), Loudness: floatPtr(-4),
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpsertAudioFeatures failed: %v", err)
+	}
+
+	tempoMin := float64(120)
+	result, err := trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{TempoMin: &tempoMin})
+	if err != nil {
+		t.Fatalf("ListForUser tempo filter failed: %v", err)
+	}
+	if result.Total != 1 || (len(result.Items) == 1 && result.Items[0].SpotifyID != fast.SpotifyID) {
+		t.Errorf("tempo_min=120: got %d items, want 1 (fast)", result.Total)
+	}
+
+	majorMode := 1
+	result, err = trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{Mode: &majorMode})
+	if err != nil {
+		t.Fatalf("ListForUser mode filter failed: %v", err)
+	}
+	if result.Total != 1 || (len(result.Items) == 1 && result.Items[0].SpotifyID != slow.SpotifyID) {
+		t.Errorf("mode=1: got %d items, want 1 (slow)", result.Total)
+	}
+
+	result, err = trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{Keys: []int{0, 7}})
+	if err != nil {
+		t.Fatalf("ListForUser key filter failed: %v", err)
+	}
+	if result.Total != 2 {
+		t.Errorf("keys=[0,7]: got %d items, want 2", result.Total)
+	}
+
+	result, err = trackRepo.ListForUser(ctx, user.ID, models.TrackFilters{SortBy: "tempo", SortDir: "asc"})
+	if err != nil {
+		t.Fatalf("ListForUser sort by tempo failed: %v", err)
+	}
+	if len(result.Items) != 3 {
+		t.Fatalf("expected 3 items, got %d", len(result.Items))
+	}
+	// NULLS LAST: slow (80), fast (160), uncategorized (NULL)
+	if result.Items[0].SpotifyID != slow.SpotifyID ||
+		result.Items[1].SpotifyID != fast.SpotifyID ||
+		result.Items[2].SpotifyID != uncategorized.SpotifyID {
+		t.Errorf("sort tempo asc order wrong: got %q, %q, %q",
+			result.Items[0].SpotifyID, result.Items[1].SpotifyID, result.Items[2].SpotifyID)
+	}
+
+	missing, err := trackRepo.ListSpotifyIDsMissingAudioFeatures(ctx, user.ID, 30, 100)
+	if err != nil {
+		t.Fatalf("ListSpotifyIDsMissingAudioFeatures failed: %v", err)
+	}
+	if len(missing) != 1 || missing[0] != uncategorized.SpotifyID {
+		t.Errorf("missing audio features: got %v, want [%q]", missing, uncategorized.SpotifyID)
 	}
 }
 

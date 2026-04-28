@@ -43,19 +43,32 @@ type Album struct {
 }
 
 type Track struct {
-	ID          int64      `json:"id"`
-	SpotifyID   string     `json:"spotify_id"`
-	Name        string     `json:"name"`
-	AlbumID     *int64     `json:"album_id,omitempty"`
-	TrackNumber int        `json:"track_number"`
-	DurationMs  int        `json:"duration_ms"`
-	Explicit    bool       `json:"explicit"`
-	Popularity  int        `json:"popularity"`
-	Album       *Album     `json:"album,omitempty"`
-	Artists     []Artist   `json:"artists,omitempty"`
-	SavedAt     *time.Time `json:"saved_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID                    int64      `json:"id"`
+	SpotifyID             string     `json:"spotify_id"`
+	Name                  string     `json:"name"`
+	AlbumID               *int64     `json:"album_id,omitempty"`
+	TrackNumber           int        `json:"track_number"`
+	DurationMs            int        `json:"duration_ms"`
+	Explicit              bool       `json:"explicit"`
+	Popularity            int        `json:"popularity"`
+	Tempo                 *float64   `json:"tempo,omitempty"`
+	Key                   *int       `json:"key,omitempty"`
+	Mode                  *int       `json:"mode,omitempty"`
+	TimeSignature         *int       `json:"time_signature,omitempty"`
+	Energy                *float64   `json:"energy,omitempty"`
+	Danceability          *float64   `json:"danceability,omitempty"`
+	Valence               *float64   `json:"valence,omitempty"`
+	Acousticness          *float64   `json:"acousticness,omitempty"`
+	Instrumentalness      *float64   `json:"instrumentalness,omitempty"`
+	Liveness              *float64   `json:"liveness,omitempty"`
+	Speechiness           *float64   `json:"speechiness,omitempty"`
+	Loudness              *float64   `json:"loudness,omitempty"`
+	AudioFeaturesSyncedAt *time.Time `json:"audio_features_synced_at,omitempty"`
+	Album                 *Album     `json:"album,omitempty"`
+	Artists               []Artist   `json:"artists,omitempty"`
+	SavedAt               *time.Time `json:"saved_at,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
 type Playlist struct {
@@ -87,20 +100,47 @@ type SyncJob struct {
 }
 
 type TrackFilters struct {
-	Search        string
-	Genres        []string
-	YearMin       *int
-	YearMax       *int
-	PopularityMin *int
-	PopularityMax *int
-	DurationMin   *int
-	DurationMax   *int
-	Explicit      *bool
-	PlaylistID    string
-	Page          int
-	PageSize      int
-	SortBy        string
-	SortDir       string
+	Search                string
+	Genres                []string
+	YearMin               *int
+	YearMax               *int
+	PopularityMin         *int
+	PopularityMax         *int
+	DurationMin           *int
+	DurationMax           *int
+	Explicit              *bool
+	PlaylistID            string
+	SavedAtMin            *time.Time
+	SavedAtMax            *time.Time
+	ArtistPopularityMin   *int
+	ArtistPopularityMax   *int
+	ArtistFollowersMin    *int
+	ArtistFollowersMax    *int
+	TempoMin              *float64
+	TempoMax              *float64
+	EnergyMin             *float64
+	EnergyMax             *float64
+	DanceabilityMin       *float64
+	DanceabilityMax       *float64
+	ValenceMin            *float64
+	ValenceMax            *float64
+	AcousticnessMin       *float64
+	AcousticnessMax       *float64
+	InstrumentalnessMin   *float64
+	InstrumentalnessMax   *float64
+	LivenessMin           *float64
+	LivenessMax           *float64
+	SpeechinessMin        *float64
+	SpeechinessMax        *float64
+	LoudnessMin           *float64
+	LoudnessMax           *float64
+	Keys                  []int
+	Mode                  *int
+	TimeSignatures        []int
+	Page                  int
+	PageSize              int
+	SortBy                string
+	SortDir               string
 }
 
 type AlbumFilters struct {

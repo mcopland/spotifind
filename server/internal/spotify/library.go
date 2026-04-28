@@ -3,6 +3,7 @@ package spotify
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type recentlyPlayedResponse struct {
@@ -270,4 +271,44 @@ func (c *Client) GetTopArtists(ctx context.Context, timeRange string) ([]Spotify
 		return nil, fmt.Errorf("get top artists %s: %w", timeRange, err)
 	}
 	return resp.Items, nil
+}
+
+const audioFeaturesBatchLimit = 100
+
+type AudioFeatures struct {
+	ID               string  `json:"id"`
+	Tempo            float64 `json:"tempo"`
+	Key              int     `json:"key"`
+	Mode             int     `json:"mode"`
+	TimeSignature    int     `json:"time_signature"`
+	Energy           float64 `json:"energy"`
+	Danceability     float64 `json:"danceability"`
+	Valence          float64 `json:"valence"`
+	Acousticness     float64 `json:"acousticness"`
+	Instrumentalness float64 `json:"instrumentalness"`
+	Liveness         float64 `json:"liveness"`
+	Speechiness      float64 `json:"speechiness"`
+	Loudness         float64 `json:"loudness"`
+}
+
+type audioFeaturesResponse struct {
+	AudioFeatures []*AudioFeatures `json:"audio_features"`
+}
+
+// GetAudioFeaturesBatch fetches features for up to 100 track IDs per call.
+// Spotify returns nil entries for IDs it cannot resolve; nils are preserved
+// in the result slice so callers can correlate by index if needed.
+func (c *Client) GetAudioFeaturesBatch(ctx context.Context, ids []string) ([]*AudioFeatures, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if len(ids) > audioFeaturesBatchLimit {
+		return nil, fmt.Errorf("get audio features: batch size %d exceeds limit %d", len(ids), audioFeaturesBatchLimit)
+	}
+	var resp audioFeaturesResponse
+	path := fmt.Sprintf("/audio-features?ids=%s", strings.Join(ids, ","))
+	if err := c.Get(ctx, path, &resp); err != nil {
+		return nil, fmt.Errorf("get audio features for %d ids: %w", len(ids), err)
+	}
+	return resp.AudioFeatures, nil
 }
