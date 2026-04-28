@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/mcopland/spotifind/internal/middleware"
 	"github.com/mcopland/spotifind/internal/models"
@@ -54,40 +56,55 @@ func parseTrackFilters(r *http.Request) models.TrackFilters {
 		f.Genres = genres
 	}
 
-	if v := q.Get("year_min"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.YearMin = &n
-		}
-	}
-	if v := q.Get("year_max"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.YearMax = &n
-		}
-	}
-	if v := q.Get("popularity_min"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.PopularityMin = &n
-		}
-	}
-	if v := q.Get("popularity_max"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.PopularityMax = &n
-		}
-	}
-	if v := q.Get("duration_min"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.DurationMin = &n
-		}
-	}
-	if v := q.Get("duration_max"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			f.DurationMax = &n
-		}
-	}
+	parseInt(q, "year_min", &f.YearMin)
+	parseInt(q, "year_max", &f.YearMax)
+	parseInt(q, "popularity_min", &f.PopularityMin)
+	parseInt(q, "popularity_max", &f.PopularityMax)
+	parseInt(q, "duration_min", &f.DurationMin)
+	parseInt(q, "duration_max", &f.DurationMax)
+	parseInt(q, "artist_popularity_min", &f.ArtistPopularityMin)
+	parseInt(q, "artist_popularity_max", &f.ArtistPopularityMax)
+	parseInt(q, "artist_followers_min", &f.ArtistFollowersMin)
+	parseInt(q, "artist_followers_max", &f.ArtistFollowersMax)
+
+	parseFloat(q, "tempo_min", &f.TempoMin)
+	parseFloat(q, "tempo_max", &f.TempoMax)
+	parseFloat(q, "energy_min", &f.EnergyMin)
+	parseFloat(q, "energy_max", &f.EnergyMax)
+	parseFloat(q, "danceability_min", &f.DanceabilityMin)
+	parseFloat(q, "danceability_max", &f.DanceabilityMax)
+	parseFloat(q, "valence_min", &f.ValenceMin)
+	parseFloat(q, "valence_max", &f.ValenceMax)
+	parseFloat(q, "acousticness_min", &f.AcousticnessMin)
+	parseFloat(q, "acousticness_max", &f.AcousticnessMax)
+	parseFloat(q, "instrumentalness_min", &f.InstrumentalnessMin)
+	parseFloat(q, "instrumentalness_max", &f.InstrumentalnessMax)
+	parseFloat(q, "liveness_min", &f.LivenessMin)
+	parseFloat(q, "liveness_max", &f.LivenessMax)
+	parseFloat(q, "speechiness_min", &f.SpeechinessMin)
+	parseFloat(q, "speechiness_max", &f.SpeechinessMax)
+	parseFloat(q, "loudness_min", &f.LoudnessMin)
+	parseFloat(q, "loudness_max", &f.LoudnessMax)
+
+	parseTime(q, "saved_at_min", &f.SavedAtMin)
+	parseTime(q, "saved_at_max", &f.SavedAtMax)
+
 	if v := q.Get("explicit"); v != "" {
 		b := v == "true"
 		f.Explicit = &b
 	}
+	if v := q.Get("mode"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			f.Mode = &n
+		}
+	}
+	if keys := q["key"]; len(keys) > 0 {
+		f.Keys = parseIntList(keys)
+	}
+	if sigs := q["time_signature"]; len(sigs) > 0 {
+		f.TimeSignatures = parseIntList(sigs)
+	}
+
 	if v := q.Get("page"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			f.Page = n
@@ -100,4 +117,52 @@ func parseTrackFilters(r *http.Request) models.TrackFilters {
 	}
 
 	return f
+}
+
+func parseInt(q url.Values, key string, dst **int) {
+	v := q.Get(key)
+	if v == "" {
+		return
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return
+	}
+	*dst = &n
+}
+
+func parseFloat(q url.Values, key string, dst **float64) {
+	v := q.Get(key)
+	if v == "" {
+		return
+	}
+	n, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return
+	}
+	*dst = &n
+}
+
+func parseTime(q url.Values, key string, dst **time.Time) {
+	v := q.Get(key)
+	if v == "" {
+		return
+	}
+	t, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return
+	}
+	*dst = &t
+}
+
+func parseIntList(values []string) []int {
+	out := make([]int, 0, len(values))
+	for _, v := range values {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			continue
+		}
+		out = append(out, n)
+	}
+	return out
 }
