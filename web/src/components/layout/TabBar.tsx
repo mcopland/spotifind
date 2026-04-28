@@ -1,12 +1,9 @@
 import {
-  BarChart2,
   Clock,
   Grid,
   List,
   RefreshCw,
-  Save,
   Settings,
-  Sliders,
   Table,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -22,21 +19,8 @@ interface Tab {
 const TABS: Tab[] = [
   { id: "dashboard", to: "/", label: "Dashboard", icon: <Grid size={13} /> },
   { id: "library", to: "/library", label: "Library", icon: <Table size={13} /> },
-  {
-    id: "query-builder",
-    to: "/query-builder",
-    label: "Query builder",
-    icon: <Sliders size={13} />,
-  },
   { id: "history", to: "/history", label: "History", icon: <Clock size={13} /> },
-  { id: "artists", to: "/artists", label: "Artists", icon: <BarChart2 size={13} /> },
   { id: "playlists", to: "/playlists", label: "Playlists", icon: <List size={13} /> },
-  {
-    id: "saved",
-    to: "/saved",
-    label: "Saved",
-    icon: <Save size={13} />,
-  },
   { id: "sync", to: "/sync", label: "Sync", icon: <RefreshCw size={13} /> },
   { id: "settings", to: "/settings", label: "Settings", icon: <Settings size={13} /> },
 ];
