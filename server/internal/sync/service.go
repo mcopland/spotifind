@@ -116,6 +116,12 @@ func (s *Service) runSync(jobID, userID int64) {
 		return
 	}
 
+	// Audio features are best-effort: Spotify deprecated this endpoint for new
+	// apps in 2024-11. A 403 here should not fail the whole sync.
+	if err := s.syncAudioFeatures(ctx, client, userID); err != nil {
+		slog.Warn("audio features sync skipped", "error", err, "user_id", userID)
+	}
+
 	if err := s.userRepo.UpdateLastSynced(ctx, userID); err != nil {
 		slog.Error("failed to update last synced", "error", err)
 	}
@@ -423,6 +429,78 @@ func (s *Service) syncTopTracks(ctx context.Context, client *spotify.Client, use
 		}
 	}
 	return nil
+}
+
+const (
+	audioFeaturesStaleAfterDays = 30
+	audioFeaturesPerSyncLimit   = 5000
+	audioFeaturesBatchSize      = 100
+)
+
+func (s *Service) syncAudioFeatures(ctx context.Context, client *spotify.Client, userID int64) error {
+	ids, err := s.trackRepo.ListSpotifyIDsMissingAudioFeatures(ctx, userID, audioFeaturesStaleAfterDays, audioFeaturesPerSyncLimit)
+	if err != nil {
+		return fmt.Errorf("list tracks missing audio features: %w", err)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	for start := 0; start < len(ids); start += audioFeaturesBatchSize {
+		end := start + audioFeaturesBatchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		batch := ids[start:end]
+		features, err := client.GetAudioFeaturesBatch(ctx, batch)
+		if err != nil {
+			return fmt.Errorf("fetch audio features batch [%d:%d]: %w", start, end, err)
+		}
+		rows := make([]repository.AudioFeaturesRow, 0, len(features))
+		for _, af := range features {
+			if af == nil || af.ID == "" {
+				continue
+			}
+			rows = append(rows, audioFeaturesRowFromSpotify(af))
+		}
+		if err := s.trackRepo.UpsertAudioFeatures(ctx, rows); err != nil {
+			return fmt.Errorf("upsert audio features batch [%d:%d]: %w", start, end, err)
+		}
+	}
+	return nil
+}
+
+func audioFeaturesRowFromSpotify(af *spotify.AudioFeatures) repository.AudioFeaturesRow {
+	row := repository.AudioFeaturesRow{SpotifyID: af.ID}
+	tempo := af.Tempo
+	row.Tempo = &tempo
+	if af.Key >= 0 {
+		k := af.Key
+		row.Key = &k
+	}
+	mode := af.Mode
+	row.Mode = &mode
+	if af.TimeSignature > 0 {
+		ts := af.TimeSignature
+		row.TimeSignature = &ts
+	}
+	energy := af.Energy
+	row.Energy = &energy
+	dance := af.Danceability
+	row.Danceability = &dance
+	val := af.Valence
+	row.Valence = &val
+	acoust := af.Acousticness
+	row.Acousticness = &acoust
+	instr := af.Instrumentalness
+	row.Instrumentalness = &instr
+	live := af.Liveness
+	row.Liveness = &live
+	speech := af.Speechiness
+	row.Speechiness = &speech
+	loud := af.Loudness
+	row.Loudness = &loud
+	return row
 }
 
 func (s *Service) syncTopArtists(ctx context.Context, client *spotify.Client, userID int64) error {
