@@ -6,8 +6,6 @@ const ROUTE_LABELS: Record<string, string> = {
   artists: "Artists",
   playlists: "Playlists",
   history: "History",
-  "query-builder": "Query builder",
-  saved: "Saved queries",
   sync: "Sync",
   settings: "Settings",
 };

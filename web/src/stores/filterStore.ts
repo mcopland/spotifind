@@ -2,7 +2,6 @@ import { create } from "zustand";
 
 interface FilterState {
   tracksSearch: string;
-  artistsSearch: string;
   genres: string[];
   yearMin: number | undefined;
   yearMax: number | undefined;
@@ -15,7 +14,6 @@ interface FilterState {
   sortDir: "asc" | "desc";
 
   setTracksSearch: (s: string) => void;
-  setArtistsSearch: (s: string) => void;
   setGenres: (g: string[]) => void;
   setYearMin: (v: number | undefined) => void;
   setYearMax: (v: number | undefined) => void;
@@ -31,7 +29,6 @@ interface FilterState {
 
 const defaults = {
   tracksSearch: "",
-  artistsSearch: "",
   genres: [] as string[],
   yearMin: undefined,
   yearMax: undefined,
@@ -47,7 +44,6 @@ const defaults = {
 export const useFilterStore = create<FilterState>(set => ({
   ...defaults,
   setTracksSearch: tracksSearch => { set({ tracksSearch, page: 1 }); },
-  setArtistsSearch: artistsSearch => { set({ artistsSearch, page: 1 }); },
   setGenres: genres => { set({ genres, page: 1 }); },
   setYearMin: yearMin => { set({ yearMin, page: 1 }); },
   setYearMax: yearMax => { set({ yearMax, page: 1 }); },

@@ -7,13 +7,10 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { useAuth } from "./hooks/useAuth";
 import AlbumDetailPage from "./pages/AlbumDetailPage";
 import ArtistDetailPage from "./pages/ArtistDetailPage";
-import ArtistsPage from "./pages/ArtistsPage";
 import DashboardPage from "./pages/DashboardPage";
 import PlaylistDetailPage from "./pages/PlaylistDetailPage";
 import PlaylistsPage from "./pages/PlaylistsPage";
-import QueryBuilderPage from "./pages/QueryBuilderPage";
 import RecentlyPlayedPage from "./pages/RecentlyPlayedPage";
-import SavedQueriesPage from "./pages/SavedQueriesPage";
 import SettingsPage from "./pages/SettingsPage";
 import SyncPage from "./pages/SyncPage";
 import TracksPage from "./pages/TracksPage";
@@ -70,14 +67,11 @@ function AppRoutes() {
       >
         <Route index element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
         <Route path="library" element={<ErrorBoundary><TracksPage /></ErrorBoundary>} />
-        <Route path="artists" element={<ErrorBoundary><ArtistsPage /></ErrorBoundary>} />
         <Route path="artists/:id" element={<ErrorBoundary><ArtistDetailPage /></ErrorBoundary>} />
         <Route path="albums/:id" element={<ErrorBoundary><AlbumDetailPage /></ErrorBoundary>} />
         <Route path="playlists" element={<ErrorBoundary><PlaylistsPage /></ErrorBoundary>} />
         <Route path="playlists/:id" element={<ErrorBoundary><PlaylistDetailPage /></ErrorBoundary>} />
         <Route path="history" element={<ErrorBoundary><RecentlyPlayedPage /></ErrorBoundary>} />
-        <Route path="query-builder" element={<ErrorBoundary><QueryBuilderPage /></ErrorBoundary>} />
-        <Route path="saved" element={<ErrorBoundary><SavedQueriesPage /></ErrorBoundary>} />
         <Route path="sync" element={<ErrorBoundary><SyncPage /></ErrorBoundary>} />
         <Route path="settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
       </Route>
