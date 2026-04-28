@@ -41,6 +41,18 @@ export interface Track {
   album?: Album;
   artists: Artist[];
   saved_at?: string;
+  tempo: number | null;
+  key: number | null;
+  mode: number | null;
+  time_signature: number | null;
+  energy: number | null;
+  danceability: number | null;
+  valence: number | null;
+  acousticness: number | null;
+  instrumentalness: number | null;
+  liveness: number | null;
+  speechiness: number | null;
+  loudness: number | null;
 }
 
 export interface Playlist {
@@ -93,6 +105,33 @@ export interface TrackFilters {
   duration_max?: number;
   explicit?: boolean;
   playlist?: string;
+  saved_at_min?: string;
+  saved_at_max?: string;
+  artist_popularity_min?: number;
+  artist_popularity_max?: number;
+  artist_followers_min?: number;
+  artist_followers_max?: number;
+  tempo_min?: number;
+  tempo_max?: number;
+  energy_min?: number;
+  energy_max?: number;
+  danceability_min?: number;
+  danceability_max?: number;
+  valence_min?: number;
+  valence_max?: number;
+  acousticness_min?: number;
+  acousticness_max?: number;
+  instrumentalness_min?: number;
+  instrumentalness_max?: number;
+  liveness_min?: number;
+  liveness_max?: number;
+  speechiness_min?: number;
+  speechiness_max?: number;
+  loudness_min?: number;
+  loudness_max?: number;
+  keys?: number[];
+  mode?: number;
+  time_signatures?: number[];
   page?: number;
   page_size?: number;
   sort_by?: string;
