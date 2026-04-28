@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
-import { useRef, useState } from "react";
-import { getTracks } from "../api/tracks";
+import { Columns2, Search, SlidersHorizontal } from "lucide-react";
+import { type ReactNode, type SetStateAction, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getGenres } from "../api/sync";
+import { getTracks } from "../api/tracks";
+import { getPlaylists } from "../api/playlists";
 import Badge from "../components/primitives/Badge";
 import FilterChip from "../components/primitives/FilterChip";
-import { PopoverGroup, PopoverOption } from "../components/primitives/Popover";
+import Popover, { PopoverGroup, PopoverOption } from "../components/primitives/Popover";
 import DataTable, { type ColumnDef, type SortingState } from "../components/table/DataTable";
 import Pagination from "../components/table/Pagination";
 import { useFilterStore } from "../stores/filterStore";
@@ -19,6 +21,8 @@ const COVER_COLORS = [
   "oklch(0.7 0.12 220)",
   "oklch(0.7 0.12 320)",
 ];
+
+const PITCH_CLASSES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 function CoverPlaceholder({ name, size = 22 }: { name: string; size?: number }) {
   const idx = name.charCodeAt(0) % COVER_COLORS.length;
@@ -44,6 +48,7 @@ function CoverPlaceholder({ name, size = 22 }: { name: string; size?: number }) 
 }
 
 function EnergyBar({ value }: { value: number }) {
+  const pct = Math.round(value * 100);
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <div
@@ -56,108 +61,156 @@ function EnergyBar({ value }: { value: number }) {
         }}
       >
         <div
-          style={{ width: `${String(value)}%`, height: "100%", background: "var(--acc)" }}
+          style={{ width: `${String(pct)}%`, height: "100%", background: "var(--acc)" }}
         />
       </div>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
-        {value}
+        {pct}
       </span>
     </div>
   );
 }
 
-function buildColumns(go: (path: string, state?: Record<string, string>) => void): ColumnDef<Track>[] {
+function ArtistLinks({
+  artists,
+  navigate,
+}: {
+  artists: Track["artists"];
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  return (
+    <>
+      {artists.map((a, i) => (
+        <span key={a.spotify_id}>
+          {i > 0 && ", "}
+          <span
+            onClick={() => { void navigate(`/artists/${a.spotify_id}`); }}
+            style={{ cursor: "pointer", borderBottom: "1px solid transparent" }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--acc-ink)";
+              (e.currentTarget as HTMLElement).style.borderBottomColor = "var(--acc)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "";
+              (e.currentTarget as HTMLElement).style.borderBottomColor = "transparent";
+            }}
+          >
+            {a.name}
+          </span>
+        </span>
+      ))}
+    </>
+  );
+}
+
+// Maps column id to the API sort_by key
+const COL_SORT_KEYS: Record<string, string> = {
+  name: "name",
+  album: "album",
+  duration: "duration",
+  added: "saved_at",
+  popularity: "popularity",
+  bpm: "tempo",
+  energy: "energy",
+  danceability: "danceability",
+};
+
+const SORT_KEY_TO_COL: Record<string, string> = Object.fromEntries(
+  Object.entries(COL_SORT_KEYS).map(([col, key]) => [key, col]),
+);
+
+interface TrackColumnSpec {
+  id: string;
+  label: string;
+  defaultVisible: boolean;
+  colDef: ColumnDef<Track & { index: number }>;
+}
+
+function buildRegistry(
+  navigate: ReturnType<typeof useNavigate>,
+): TrackColumnSpec[] {
   return [
     {
       id: "num",
-      header: "#",
-      numeric: true,
-      cell: ({ row }) => {
-        // row index is not available directly; use a counter
-        return (
-          <span
-            style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-3)" }}
-          >
-            {(row as { original: Track; index?: number }).index ?? ""}
+      label: "#",
+      defaultVisible: true,
+      colDef: {
+        id: "num",
+        header: "#",
+        numeric: true,
+        cell: ({ row }) => (
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-3)" }}>
+            {(row.original as Track & { index: number }).index}
           </span>
-        );
+        ),
       },
     },
     {
-      id: "name",
-      header: "Track",
-      accessorKey: "name",
-      enableSorting: true,
-      cell: ({ row }) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <CoverPlaceholder name={row.original.name} />
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                color: "var(--fg)",
-                fontWeight: 500,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {row.original.name}
-              {row.original.explicit && (
-                <Badge style={{ marginLeft: 6, fontSize: 9, height: 14, padding: "0 4px" }}>
-                  E
-                </Badge>
-              )}
-            </div>
-            <div
-              style={{
-                color: "var(--fg-2)",
-                fontSize: 11,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {row.original.artists.map((a, i) => (
-                <span key={a.spotify_id}>
-                  {i > 0 && ", "}
-                  <span
-                    onClick={() => { go(`/artists/${a.spotify_id}`, { name: a.name }); }}
-                    style={{
-                      cursor: "pointer",
-                      borderBottom: "1px solid transparent",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = "var(--acc-ink)";
-                      (e.currentTarget as HTMLElement).style.borderBottomColor = "var(--acc)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.color = "";
-                      (e.currentTarget as HTMLElement).style.borderBottomColor = "transparent";
-                    }}
-                  >
-                    {a.name}
-                  </span>
-                </span>
-              ))}
+      id: "track",
+      label: "Track",
+      defaultVisible: true,
+      colDef: {
+        id: "name",
+        header: "Track",
+        accessorKey: "name",
+        enableSorting: true,
+        cell: ({ row }) => (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <CoverPlaceholder name={row.original.name} />
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  color: "var(--fg)",
+                  fontWeight: 500,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {row.original.name}
+              </div>
+              <div style={{ color: "var(--fg-3)", fontSize: 11 }}>
+                {row.original.album?.name}
+                {row.original.album?.release_year ? ` · ${String(row.original.album.release_year)}` : ""}
+              </div>
             </div>
           </div>
-        </div>
-      ),
+        ),
+      },
+    },
+    {
+      id: "artist",
+      label: "Artist",
+      defaultVisible: true,
+      colDef: {
+        id: "artist",
+        header: "Artist",
+        cell: ({ row }) => (
+          <span style={{ fontSize: 12, color: "var(--fg-2)" }}>
+            <ArtistLinks artists={row.original.artists} navigate={navigate} />
+          </span>
+        ),
+      },
     },
     {
       id: "album",
-      header: "Album",
-      accessorFn: (r) => r.album?.name ?? "",
-      enableSorting: true,
-      cell: ({ row }) => (
-        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      label: "Album",
+      defaultVisible: true,
+      colDef: {
+        id: "album",
+        header: "Album",
+        accessorFn: (r) => r.album?.name ?? "",
+        enableSorting: true,
+        cell: ({ row }) => (
           <span
             onClick={() => {
               if (row.original.album)
-                go(`/albums/${row.original.album.spotify_id}`, { name: row.original.album.name });
+                void navigate(`/albums/${row.original.album.spotify_id}`);
             }}
             style={{
               color: "var(--fg-2)",
               cursor: "pointer",
               borderBottom: "1px solid transparent",
+              fontSize: 12,
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.color = "var(--acc-ink)";
@@ -170,136 +223,455 @@ function buildColumns(go: (path: string, state?: Record<string, string>) => void
           >
             {row.original.album?.name}
           </span>
-          {row.original.album?.release_year && (
-            <span style={{ color: "var(--fg-3)", fontSize: 11 }}>
-              · {row.original.album.release_year}
-            </span>
-          )}
-        </span>
-      ),
+        ),
+      },
     },
     {
       id: "genre",
-      header: "Genre",
-      cell: ({ row }) => {
-        const genre = row.original.artists[0]?.genres?.[0];
-        if (!genre) return <span style={{ color: "var(--fg-3)" }}>--</span>;
-        return <Badge>{genre}</Badge>;
+      label: "Genre",
+      defaultVisible: true,
+      colDef: {
+        id: "genre",
+        header: "Genre",
+        cell: ({ row }) => {
+          const genre = row.original.artists[0]?.genres?.[0];
+          if (!genre) return <span style={{ color: "var(--fg-3)" }}>--</span>;
+          return <Badge>{genre}</Badge>;
+        },
+      },
+    },
+    {
+      id: "length",
+      label: "Length",
+      defaultVisible: true,
+      colDef: {
+        id: "duration",
+        header: "Length",
+        accessorKey: "duration_ms",
+        enableSorting: true,
+        numeric: true,
+        cell: ({ row }) => (
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
+            {fmtMs(row.original.duration_ms)}
+          </span>
+        ),
+      },
+    },
+    {
+      id: "added",
+      label: "Added",
+      defaultVisible: true,
+      colDef: {
+        id: "added",
+        header: "Added",
+        accessorKey: "saved_at",
+        enableSorting: true,
+        cell: ({ row }) => (
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-2)" }}>
+            {row.original.saved_at ? relDate(row.original.saved_at) : "--"}
+          </span>
+        ),
+      },
+    },
+    {
+      id: "source",
+      label: "Source",
+      defaultVisible: true,
+      colDef: {
+        id: "source",
+        header: "Source",
+        cell: () => <Badge variant="info">library</Badge>,
+      },
+    },
+    {
+      id: "popularity",
+      label: "Popularity",
+      defaultVisible: false,
+      colDef: {
+        id: "popularity",
+        header: "Popularity",
+        accessorKey: "popularity",
+        enableSorting: true,
+        numeric: true,
+        cell: ({ row }) => <EnergyBar value={row.original.popularity / 100} />,
+      },
+    },
+    {
+      id: "explicit",
+      label: "Explicit",
+      defaultVisible: false,
+      colDef: {
+        id: "explicit",
+        header: "Explicit",
+        cell: ({ row }) =>
+          row.original.explicit
+            ? <Badge style={{ fontSize: 9, height: 14, padding: "0 4px" }}>E</Badge>
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
       },
     },
     {
       id: "bpm",
-      header: "BPM",
-      numeric: true,
-      cell: () => (
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-3)" }}>
-          --
-        </span>
-      ),
+      label: "BPM",
+      defaultVisible: false,
+      colDef: {
+        id: "bpm",
+        header: "BPM",
+        numeric: true,
+        enableSorting: true,
+        cell: ({ row }) =>
+          row.original.tempo != null
+            ? (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
+                {Math.round(row.original.tempo)}
+              </span>
+            )
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
     },
     {
       id: "key",
-      header: "Key",
-      cell: () => (
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--fg-3)" }}>
-          --
-        </span>
-      ),
+      label: "Key",
+      defaultVisible: false,
+      colDef: {
+        id: "key",
+        header: "Key",
+        cell: ({ row }) =>
+          row.original.key != null
+            ? (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
+                {PITCH_CLASSES[row.original.key] ?? "--"}
+              </span>
+            )
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
+    },
+    {
+      id: "mode",
+      label: "Mode",
+      defaultVisible: false,
+      colDef: {
+        id: "mode",
+        header: "Mode",
+        cell: ({ row }) =>
+          row.original.mode === 1
+            ? <span style={{ fontSize: 11.5, color: "var(--fg-1)" }}>Major</span>
+            : row.original.mode === 0
+              ? <span style={{ fontSize: 11.5, color: "var(--fg-1)" }}>Minor</span>
+              : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
+    },
+    {
+      id: "time_sig",
+      label: "Time sig.",
+      defaultVisible: false,
+      colDef: {
+        id: "time_sig",
+        header: "Time sig.",
+        numeric: true,
+        cell: ({ row }) =>
+          row.original.time_signature != null
+            ? (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
+                {row.original.time_signature}/4
+              </span>
+            )
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
     },
     {
       id: "energy",
-      header: "Energy",
-      numeric: true,
-      cell: ({ row }) => <EnergyBar value={row.original.popularity} />,
+      label: "Energy",
+      defaultVisible: false,
+      colDef: {
+        id: "energy",
+        header: "Energy",
+        numeric: true,
+        enableSorting: true,
+        cell: ({ row }) =>
+          row.original.energy != null
+            ? <EnergyBar value={row.original.energy} />
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
     },
     {
-      id: "duration",
-      header: "Length",
-      accessorKey: "duration_ms",
-      enableSorting: true,
-      numeric: true,
-      cell: ({ row }) => (
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
-          {fmtMs(row.original.duration_ms)}
-        </span>
-      ),
+      id: "danceability",
+      label: "Danceability",
+      defaultVisible: false,
+      colDef: {
+        id: "danceability",
+        header: "Danceability",
+        numeric: true,
+        enableSorting: true,
+        cell: ({ row }) =>
+          row.original.danceability != null
+            ? <EnergyBar value={row.original.danceability} />
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
     },
     {
-      id: "plays",
-      header: "Plays",
-      numeric: true,
-      cell: () => (
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-3)" }}>
-          --
-        </span>
-      ),
+      id: "valence",
+      label: "Valence",
+      defaultVisible: false,
+      colDef: {
+        id: "valence",
+        header: "Valence",
+        numeric: true,
+        cell: ({ row }) =>
+          row.original.valence != null
+            ? <EnergyBar value={row.original.valence} />
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
     },
     {
-      id: "added",
-      header: "Added",
-      accessorKey: "saved_at",
-      enableSorting: true,
-      cell: ({ row }) => (
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-2)" }}>
-          {row.original.saved_at ? relDate(row.original.saved_at) : "--"}
-        </span>
-      ),
+      id: "acousticness",
+      label: "Acousticness",
+      defaultVisible: false,
+      colDef: {
+        id: "acousticness",
+        header: "Acousticness",
+        numeric: true,
+        cell: ({ row }) =>
+          row.original.acousticness != null
+            ? <EnergyBar value={row.original.acousticness} />
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
     },
     {
-      id: "source",
-      header: "Source",
-      cell: () => (
-        <Badge variant="info">library</Badge>
-      ),
+      id: "instrumentalness",
+      label: "Instrumental",
+      defaultVisible: false,
+      colDef: {
+        id: "instrumentalness",
+        header: "Instrumental",
+        numeric: true,
+        cell: ({ row }) =>
+          row.original.instrumentalness != null
+            ? <EnergyBar value={row.original.instrumentalness} />
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
+    },
+    {
+      id: "liveness",
+      label: "Liveness",
+      defaultVisible: false,
+      colDef: {
+        id: "liveness",
+        header: "Liveness",
+        numeric: true,
+        cell: ({ row }) =>
+          row.original.liveness != null
+            ? <EnergyBar value={row.original.liveness} />
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
+    },
+    {
+      id: "speechiness",
+      label: "Speechiness",
+      defaultVisible: false,
+      colDef: {
+        id: "speechiness",
+        header: "Speechiness",
+        numeric: true,
+        cell: ({ row }) =>
+          row.original.speechiness != null
+            ? <EnergyBar value={row.original.speechiness} />
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
+    },
+    {
+      id: "loudness",
+      label: "Loudness",
+      defaultVisible: false,
+      colDef: {
+        id: "loudness",
+        header: "Loudness",
+        numeric: true,
+        cell: ({ row }) =>
+          row.original.loudness != null
+            ? (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
+                {row.original.loudness.toFixed(1)} dB
+              </span>
+            )
+            : <span style={{ color: "var(--fg-3)" }}>--</span>,
+      },
     },
   ];
 }
 
+function buildVisibleColumns(
+  registry: TrackColumnSpec[],
+  visibility: Record<string, boolean>,
+  order: string[],
+): ColumnDef<Track & { index: number }>[] {
+  const byId = new Map(registry.map((s) => [s.id, s]));
+  return order
+    .filter((id) => visibility[id])
+    .map((id) => byId.get(id))
+    .filter((s): s is TrackColumnSpec => s !== undefined)
+    .map((s) => s.colDef);
+}
+
+function NumberInput({
+  placeholder,
+  value,
+  onChange,
+}: {
+  placeholder: string;
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+}) {
+  return (
+    <input
+      type="number"
+      placeholder={placeholder}
+      value={value ?? ""}
+      onChange={(e) => { onChange(e.target.value ? Number(e.target.value) : undefined); }}
+      style={{
+        width: 72,
+        height: 26,
+        padding: "0 6px",
+        border: "1px solid var(--hair)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--bg)",
+        color: "var(--fg)",
+        fontSize: 11.5,
+      }}
+    />
+  );
+}
+
+function RangeRow({
+  label,
+  minVal,
+  maxVal,
+  onMinChange,
+  onMaxChange,
+  minPlaceholder,
+  maxPlaceholder,
+  children,
+}: {
+  label: string;
+  minVal: number | undefined;
+  maxVal: number | undefined;
+  onMinChange: (v: number | undefined) => void;
+  onMaxChange: (v: number | undefined) => void;
+  minPlaceholder?: string;
+  maxPlaceholder?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div style={{ padding: "4px 8px", display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ fontSize: 11.5, color: "var(--fg-1)", minWidth: 100 }}>{label}</span>
+      {children ?? (
+        <>
+          <NumberInput placeholder={minPlaceholder ?? "Min"} value={minVal} onChange={onMinChange} />
+          <span style={{ color: "var(--fg-3)", fontSize: 11 }}>–</span>
+          <NumberInput placeholder={maxPlaceholder ?? "Max"} value={maxVal} onChange={onMaxChange} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function TracksPage() {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const navigate = useNavigate();
   const [localSearch, setLocalSearch] = useState(() => useFilterStore.getState().tracksSearch);
   const searchRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+  const columnPickerRef = useRef<HTMLButtonElement>(null);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const moreFiltersRef = useRef<HTMLButtonElement>(null);
 
+  const store = useFilterStore();
   const {
-    tracksSearch,
-    setTracksSearch,
-    genres,
-    setGenres,
-    yearMin,
-    setYearMin,
-    yearMax,
-    setYearMax,
-    popularityMin,
-    setPopularityMin,
-    popularityMax,
-    setPopularityMax,
-    explicit,
-    setExplicit,
-    page,
+    tracksSearch, setTracksSearch,
+    genres, setGenres,
+    yearMin, setYearMin,
+    yearMax, setYearMax,
+    popularityMin, setPopularityMin,
+    popularityMax, setPopularityMax,
+    durationMin, setDurationMin,
+    durationMax, setDurationMax,
+    explicit, setExplicit,
+    playlistId, setPlaylistId,
+    savedAtMin, setSavedAtMin,
+    savedAtMax, setSavedAtMax,
+    artistPopularityMin, setArtistPopularityMin,
+    artistPopularityMax, setArtistPopularityMax,
+    artistFollowersMin, setArtistFollowersMin,
+    artistFollowersMax, setArtistFollowersMax,
+    tempoMin, setTempoMin,
+    tempoMax, setTempoMax,
+    energyMin, setEnergyMin,
+    energyMax, setEnergyMax,
+    danceabilityMin, setDanceabilityMin,
+    danceabilityMax, setDanceabilityMax,
+    valenceMin, setValenceMin,
+    valenceMax, setValenceMax,
+    acousticnessMin, setAcousticnessMin,
+    acousticnessMax, setAcousticnessMax,
+    instrumentalnessMin, setInstrumentalnessMin,
+    instrumentalnessMax, setInstrumentalnessMax,
+    livenessMin, setLivenessMin,
+    livenessMax, setLivenessMax,
+    speechinessMin, setSpeechinessMin,
+    speechinessMax, setSpeechinessMax,
+    loudnessMin, setLoudnessMin,
+    loudnessMax, setLoudnessMax,
+    keys, setKeys,
+    mode, setMode,
+    timeSignatures, setTimeSignatures,
+    page, setPage,
     pageSize,
-    setPage,
-  } = useFilterStore();
+    sortBy, setSortBy,
+    sortDir, setSortDir,
+    tracksColumnVisibility,
+    tracksColumnOrder,
+    setTracksColumnVisibility,
+    resetTracksColumns,
+  } = store;
 
   const { data: genreOptions = [] } = useQuery({
     queryKey: ["genres"],
     queryFn: getGenres,
   });
 
-  const sortBy = sorting[0]?.id === "name"
-    ? "name"
-    : sorting[0]?.id === "album"
-      ? "album"
-      : sorting[0]?.id === "duration"
-        ? "duration"
-        : sorting[0]?.id === "added"
-          ? "saved_at"
-          : undefined;
-  const sortDir = sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined;
+  const { data: playlists = [] } = useQuery({
+    queryKey: ["playlists"],
+    queryFn: getPlaylists,
+  });
+
+  const sorting: SortingState = sortBy
+    ? [{ id: SORT_KEY_TO_COL[sortBy] ?? sortBy, desc: sortDir === "desc" }]
+    : [];
+
+  function handleSortingChange(newSorting: SetStateAction<SortingState>) {
+    const resolved = typeof newSorting === "function" ? newSorting(sorting) : newSorting;
+    if (resolved.length === 0) {
+      setSortBy("");
+      setSortDir("asc");
+    } else {
+      const { id, desc } = resolved[0];
+      setSortBy(COL_SORT_KEYS[id] ?? id);
+      setSortDir(desc ? "desc" : "asc");
+    }
+  }
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: [
       "tracks",
-      { tracksSearch, genres, yearMin, yearMax, popularityMin, popularityMax, explicit, page, pageSize, sortBy, sortDir },
+      {
+        tracksSearch, genres, yearMin, yearMax, popularityMin, popularityMax,
+        durationMin, durationMax, explicit, playlistId, savedAtMin, savedAtMax,
+        artistPopularityMin, artistPopularityMax, artistFollowersMin, artistFollowersMax,
+        tempoMin, tempoMax, energyMin, energyMax,
+        danceabilityMin, danceabilityMax, valenceMin, valenceMax,
+        acousticnessMin, acousticnessMax, instrumentalnessMin, instrumentalnessMax,
+        livenessMin, livenessMax, speechinessMin, speechinessMax,
+        loudnessMin, loudnessMax, keys, mode, timeSignatures,
+        page, pageSize, sortBy, sortDir,
+      },
     ],
     queryFn: () =>
       getTracks({
@@ -309,10 +681,40 @@ export default function TracksPage() {
         year_max: yearMax,
         popularity_min: popularityMin,
         popularity_max: popularityMax,
+        duration_min: durationMin,
+        duration_max: durationMax,
         explicit,
+        playlist: playlistId,
+        saved_at_min: savedAtMin,
+        saved_at_max: savedAtMax,
+        artist_popularity_min: artistPopularityMin,
+        artist_popularity_max: artistPopularityMax,
+        artist_followers_min: artistFollowersMin,
+        artist_followers_max: artistFollowersMax,
+        tempo_min: tempoMin,
+        tempo_max: tempoMax,
+        energy_min: energyMin,
+        energy_max: energyMax,
+        danceability_min: danceabilityMin,
+        danceability_max: danceabilityMax,
+        valence_min: valenceMin,
+        valence_max: valenceMax,
+        acousticness_min: acousticnessMin,
+        acousticness_max: acousticnessMax,
+        instrumentalness_min: instrumentalnessMin,
+        instrumentalness_max: instrumentalnessMax,
+        liveness_min: livenessMin,
+        liveness_max: livenessMax,
+        speechiness_min: speechinessMin,
+        speechiness_max: speechinessMax,
+        loudness_min: loudnessMin,
+        loudness_max: loudnessMax,
+        keys,
+        mode,
+        time_signatures: timeSignatures,
         page,
         page_size: pageSize,
-        sort_by: sortBy,
+        sort_by: sortBy || undefined,
         sort_dir: sortDir,
       }),
   });
@@ -324,27 +726,80 @@ export default function TracksPage() {
     searchRef.current = setTimeout(() => { setTracksSearch(val); }, 300);
   }
 
-  // navigation helper using window.history (avoids prop drilling)
-  function go(path: string, state?: Record<string, string>) {
-    window.history.pushState(state ?? null, "", path);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }
+  const registry = buildRegistry(navigate);
 
-  const columns = buildColumns(go);
-
-  // Inject row index into data for the # column
   const rows = (data?.items ?? []).map((r, i) => ({
     ...r,
     index: (page - 1) * pageSize + i + 1,
   })) as (Track & { index: number })[];
 
-  const hasFilters =
+  const columns = buildVisibleColumns(
+    registry,
+    tracksColumnVisibility,
+    tracksColumnOrder,
+  );
+
+  const moreFilterCount = [
+    playlistId, savedAtMin, savedAtMax,
+    artistPopularityMin, artistPopularityMax, artistFollowersMin, artistFollowersMax,
+    tempoMin, tempoMax, energyMin, energyMax,
+    danceabilityMin, danceabilityMax, valenceMin, valenceMax,
+    acousticnessMin, acousticnessMax, instrumentalnessMin, instrumentalnessMax,
+    livenessMin, livenessMax, speechinessMin, speechinessMax,
+    loudnessMin, loudnessMax,
+    mode,
+  ].filter((v) => v !== undefined).length + keys.length + timeSignatures.length;
+
+  const hasInlineFilters =
     genres.length > 0 ||
     yearMin !== undefined ||
     yearMax !== undefined ||
     popularityMin !== undefined ||
     popularityMax !== undefined ||
+    durationMin !== undefined ||
+    durationMax !== undefined ||
     explicit !== undefined;
+
+  function clearAllFilters() {
+    setGenres([]);
+    setYearMin(undefined);
+    setYearMax(undefined);
+    setPopularityMin(undefined);
+    setPopularityMax(undefined);
+    setDurationMin(undefined);
+    setDurationMax(undefined);
+    setExplicit(undefined);
+    setPlaylistId(undefined);
+    setSavedAtMin(undefined);
+    setSavedAtMax(undefined);
+    setArtistPopularityMin(undefined);
+    setArtistPopularityMax(undefined);
+    setArtistFollowersMin(undefined);
+    setArtistFollowersMax(undefined);
+    setTempoMin(undefined);
+    setTempoMax(undefined);
+    setEnergyMin(undefined);
+    setEnergyMax(undefined);
+    setDanceabilityMin(undefined);
+    setDanceabilityMax(undefined);
+    setValenceMin(undefined);
+    setValenceMax(undefined);
+    setAcousticnessMin(undefined);
+    setAcousticnessMax(undefined);
+    setInstrumentalnessMin(undefined);
+    setInstrumentalnessMax(undefined);
+    setLivenessMin(undefined);
+    setLivenessMax(undefined);
+    setSpeechinessMin(undefined);
+    setSpeechinessMax(undefined);
+    setLoudnessMin(undefined);
+    setLoudnessMax(undefined);
+    setKeys([]);
+    setMode(undefined);
+    setTimeSignatures([]);
+    setLocalSearch("");
+    setTracksSearch("");
+  }
 
   if (isError) {
     return (
@@ -376,6 +831,29 @@ export default function TracksPage() {
     );
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: 80,
+    height: 26,
+    padding: "0 6px",
+    border: "1px solid var(--hair)",
+    borderRadius: "var(--radius-sm)",
+    background: "var(--bg)",
+    color: "var(--fg)",
+    fontSize: 11.5,
+  };
+
+  const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
+    height: 22,
+    padding: "0 7px",
+    border: `1px solid ${active ? "var(--acc)" : "var(--hair)"}`,
+    borderRadius: 3,
+    background: active ? "var(--acc-soft)" : "var(--bg)",
+    color: active ? "var(--acc-ink)" : "var(--fg-2)",
+    fontSize: 11,
+    cursor: "pointer",
+    fontFamily: "var(--font-mono)",
+  });
+
   return (
     <>
       {/* Page header */}
@@ -389,49 +867,30 @@ export default function TracksPage() {
           zIndex: 2,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h1
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 18,
+            fontWeight: 600,
+            letterSpacing: "-0.015em",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: "var(--font-ui)",
+          }}
+        >
+          Library
+          <span
             style={{
-              margin: 0,
-              fontSize: 18,
-              fontWeight: 600,
-              letterSpacing: "-0.015em",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontFamily: "var(--font-ui)",
+              fontFamily: "var(--font-mono)",
+              color: "var(--fg-2)",
+              fontSize: 13,
+              fontWeight: 400,
             }}
           >
-            Library
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                color: "var(--fg-2)",
-                fontSize: 13,
-                fontWeight: 400,
-              }}
-            >
-              · {data?.total.toLocaleString() ?? "…"} tracks
-            </span>
-          </h1>
-          <div style={{ flex: 1 }} />
-          <button
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "4px 9px",
-              height: 26,
-              border: "1px solid var(--hair)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--bg)",
-              color: "var(--fg-1)",
-              fontSize: 12,
-            }}
-          >
-            <Plus size={11} /> New from query
-          </button>
-        </div>
+            · {data?.total.toLocaleString() ?? "…"} tracks
+          </span>
+        </h1>
         <div style={{ marginTop: 2, fontSize: 12, color: "var(--fg-2)" }}>
           Every track you've saved, added to a playlist, or recently played.
         </div>
@@ -521,34 +980,16 @@ export default function TracksPage() {
             <input
               type="number"
               placeholder="From"
-              defaultValue={yearMin}
+              value={yearMin ?? ""}
               onChange={(e) => { setYearMin(e.target.value ? Number(e.target.value) : undefined); }}
-              style={{
-                width: 80,
-                height: 28,
-                padding: "0 8px",
-                border: "1px solid var(--hair)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--bg)",
-                color: "var(--fg)",
-                fontSize: 12,
-              }}
+              style={inputStyle}
             />
             <input
               type="number"
               placeholder="To"
-              defaultValue={yearMax}
+              value={yearMax ?? ""}
               onChange={(e) => { setYearMax(e.target.value ? Number(e.target.value) : undefined); }}
-              style={{
-                width: 80,
-                height: 28,
-                padding: "0 8px",
-                border: "1px solid var(--hair)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--bg)",
-                color: "var(--fg)",
-                fontSize: 12,
-              }}
+              style={inputStyle}
             />
           </div>
         </FilterChip>
@@ -582,6 +1023,70 @@ export default function TracksPage() {
           ))}
         </FilterChip>
 
+        {/* Duration chip */}
+        <FilterChip
+          label="Duration"
+          applied={durationMin !== undefined || durationMax !== undefined}
+          value={
+            durationMin !== undefined || durationMax !== undefined
+              ? `${durationMin !== undefined ? fmtMs(durationMin) : "0:00"}–${durationMax !== undefined ? fmtMs(durationMax) : "∞"}`
+              : undefined
+          }
+          onRemove={() => { setDurationMin(undefined); setDurationMax(undefined); }}
+        >
+          <PopoverGroup>Duration (seconds)</PopoverGroup>
+          <div style={{ padding: "6px 8px", display: "flex", gap: 8 }}>
+            <input
+              type="number"
+              placeholder="From"
+              value={durationMin !== undefined ? Math.round(durationMin / 1000) : ""}
+              onChange={(e) => { setDurationMin(e.target.value ? Number(e.target.value) * 1000 : undefined); }}
+              style={inputStyle}
+            />
+            <input
+              type="number"
+              placeholder="To"
+              value={durationMax !== undefined ? Math.round(durationMax / 1000) : ""}
+              onChange={(e) => { setDurationMax(e.target.value ? Number(e.target.value) * 1000 : undefined); }}
+              style={inputStyle}
+            />
+          </div>
+        </FilterChip>
+
+        {/* Date Added chip */}
+        <FilterChip
+          label="Added"
+          applied={savedAtMin !== undefined || savedAtMax !== undefined}
+          value={
+            savedAtMin !== undefined || savedAtMax !== undefined
+              ? [savedAtMin?.slice(0, 10), savedAtMax?.slice(0, 10)].filter(Boolean).join("–")
+              : undefined
+          }
+          onRemove={() => { setSavedAtMin(undefined); setSavedAtMax(undefined); }}
+        >
+          <PopoverGroup>Date added</PopoverGroup>
+          <div style={{ padding: "6px 8px", display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, color: "var(--fg-2)" }}>
+              From
+              <input
+                type="date"
+                value={savedAtMin ? savedAtMin.slice(0, 10) : ""}
+                onChange={(e) => { setSavedAtMin(e.target.value ? `${e.target.value}T00:00:00Z` : undefined); }}
+                style={{ ...inputStyle, display: "block", width: 140, marginTop: 2 }}
+              />
+            </label>
+            <label style={{ fontSize: 11, color: "var(--fg-2)" }}>
+              To
+              <input
+                type="date"
+                value={savedAtMax ? savedAtMax.slice(0, 10) : ""}
+                onChange={(e) => { setSavedAtMax(e.target.value ? `${e.target.value}T23:59:59Z` : undefined); }}
+                style={{ ...inputStyle, display: "block", width: 140, marginTop: 2 }}
+              />
+            </label>
+          </div>
+        </FilterChip>
+
         {/* Explicit chip */}
         <FilterChip
           label="Explicit"
@@ -594,37 +1099,314 @@ export default function TracksPage() {
           <PopoverOption onClick={() => { setExplicit(false); }}>No</PopoverOption>
         </FilterChip>
 
-        {hasFilters && (
+        {/* More filters */}
+        <button
+          ref={moreFiltersRef}
+          onClick={() => { setMoreFiltersOpen((o) => !o); }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            height: 24,
+            padding: "0 9px",
+            border: `1px solid ${moreFilterCount > 0 ? "color-mix(in oklch, var(--acc) 40%, var(--hair))" : "var(--hair-strong)"}`,
+            borderStyle: moreFilterCount > 0 ? "solid" : "dashed",
+            borderRadius: 999,
+            background: moreFilterCount > 0 ? "var(--acc-soft)" : "var(--bg)",
+            color: moreFilterCount > 0 ? "var(--acc-ink)" : "var(--fg-1)",
+            fontSize: 11.5,
+            cursor: "pointer",
+          }}
+        >
+          <SlidersHorizontal size={11} />
+          More filters
+          {moreFilterCount > 0 && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 16,
+                height: 16,
+                borderRadius: "50%",
+                background: "var(--acc)",
+                color: "black",
+                fontSize: 9,
+                fontWeight: 700,
+              }}
+            >
+              {moreFilterCount}
+            </span>
+          )}
+        </button>
+
+        <Popover
+          anchor={moreFiltersRef}
+          open={moreFiltersOpen}
+          onClose={() => { setMoreFiltersOpen(false); }}
+        >
+          <div style={{ minWidth: 360, maxHeight: 480, overflowY: "auto" }}>
+            <PopoverGroup>Track</PopoverGroup>
+            {/* Playlist */}
+            <div style={{ padding: "4px 8px" }}>
+              <span style={{ fontSize: 11, color: "var(--fg-2)", display: "block", marginBottom: 3 }}>Playlist</span>
+              <select
+                value={playlistId ?? ""}
+                onChange={(e) => { setPlaylistId(e.target.value || undefined); }}
+                style={{
+                  width: "100%",
+                  height: 26,
+                  padding: "0 6px",
+                  border: "1px solid var(--hair)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--bg)",
+                  color: "var(--fg)",
+                  fontSize: 11.5,
+                }}
+              >
+                <option value="">Any playlist</option>
+                {playlists.map((p) => (
+                  <option key={p.spotify_id} value={p.spotify_id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <PopoverGroup>Audio features</PopoverGroup>
+            {/* Tempo */}
+            <RangeRow label="Tempo (BPM)" minVal={tempoMin} maxVal={tempoMax} onMinChange={setTempoMin} onMaxChange={setTempoMax} />
+            {/* Loudness */}
+            <RangeRow label="Loudness (dB)" minVal={loudnessMin} maxVal={loudnessMax} onMinChange={setLoudnessMin} onMaxChange={setLoudnessMax} minPlaceholder="-60" maxPlaceholder="0" />
+            {/* 0-1 float filters */}
+            {([
+              ["Energy", energyMin, energyMax, setEnergyMin, setEnergyMax],
+              ["Danceability", danceabilityMin, danceabilityMax, setDanceabilityMin, setDanceabilityMax],
+              ["Valence", valenceMin, valenceMax, setValenceMin, setValenceMax],
+              ["Acousticness", acousticnessMin, acousticnessMax, setAcousticnessMin, setAcousticnessMax],
+              ["Instrumental.", instrumentalnessMin, instrumentalnessMax, setInstrumentalnessMin, setInstrumentalnessMax],
+              ["Liveness", livenessMin, livenessMax, setLivenessMin, setLivenessMax],
+              ["Speechiness", speechinessMin, speechinessMax, setSpeechinessMin, setSpeechinessMax],
+            ] as const).map(([label, minV, maxV, onMin, onMax]) => (
+              <RangeRow
+                key={label}
+                label={label}
+                minVal={minV !== undefined ? Math.round(minV * 100) : undefined}
+                maxVal={maxV !== undefined ? Math.round(maxV * 100) : undefined}
+                onMinChange={(v) => { onMin(v !== undefined ? v / 100 : undefined); }}
+                onMaxChange={(v) => { onMax(v !== undefined ? v / 100 : undefined); }}
+                minPlaceholder="0%"
+                maxPlaceholder="100%"
+              />
+            ))}
+            {/* Key */}
+            <div style={{ padding: "4px 8px" }}>
+              <span style={{ fontSize: 11, color: "var(--fg-2)", display: "block", marginBottom: 4 }}>Key</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {PITCH_CLASSES.map((pc, i) => (
+                  <button
+                    key={pc}
+                    onClick={() => {
+                      setKeys(keys.includes(i) ? keys.filter((k) => k !== i) : [...keys, i]);
+                    }}
+                    style={toggleBtnStyle(keys.includes(i))}
+                  >
+                    {pc}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Mode */}
+            <div style={{ padding: "4px 8px" }}>
+              <span style={{ fontSize: 11, color: "var(--fg-2)", display: "block", marginBottom: 4 }}>Mode</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[["Any", undefined], ["Major", 1], ["Minor", 0]].map(([label, val]) => (
+                  <button
+                    key={String(label)}
+                    onClick={() => { setMode(mode === val ? undefined : (val as number | undefined)); }}
+                    style={toggleBtnStyle(mode === val)}
+                  >
+                    {String(label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Time signature */}
+            <div style={{ padding: "4px 8px" }}>
+              <span style={{ fontSize: 11, color: "var(--fg-2)", display: "block", marginBottom: 4 }}>Time signature</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[3, 4, 5, 6, 7].map((ts) => (
+                  <button
+                    key={ts}
+                    onClick={() => {
+                      setTimeSignatures(
+                        timeSignatures.includes(ts)
+                          ? timeSignatures.filter((t) => t !== ts)
+                          : [...timeSignatures, ts],
+                      );
+                    }}
+                    style={toggleBtnStyle(timeSignatures.includes(ts))}
+                  >
+                    {ts}/4
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <PopoverGroup>Artists</PopoverGroup>
+            <RangeRow label="Artist popularity" minVal={artistPopularityMin} maxVal={artistPopularityMax} onMinChange={setArtistPopularityMin} onMaxChange={setArtistPopularityMax} minPlaceholder="0" maxPlaceholder="100" />
+            <RangeRow label="Followers" minVal={artistFollowersMin} maxVal={artistFollowersMax} onMinChange={setArtistFollowersMin} onMaxChange={setArtistFollowersMax} />
+
+            {moreFilterCount > 0 && (
+              <div style={{ padding: "6px 8px", borderTop: "1px solid var(--hair)", marginTop: 4 }}>
+                <button
+                  onClick={() => {
+                    setPlaylistId(undefined);
+                    setSavedAtMin(undefined);
+                    setSavedAtMax(undefined);
+                    setArtistPopularityMin(undefined);
+                    setArtistPopularityMax(undefined);
+                    setArtistFollowersMin(undefined);
+                    setArtistFollowersMax(undefined);
+                    setTempoMin(undefined);
+                    setTempoMax(undefined);
+                    setEnergyMin(undefined);
+                    setEnergyMax(undefined);
+                    setDanceabilityMin(undefined);
+                    setDanceabilityMax(undefined);
+                    setValenceMin(undefined);
+                    setValenceMax(undefined);
+                    setAcousticnessMin(undefined);
+                    setAcousticnessMax(undefined);
+                    setInstrumentalnessMin(undefined);
+                    setInstrumentalnessMax(undefined);
+                    setLivenessMin(undefined);
+                    setLivenessMax(undefined);
+                    setSpeechinessMin(undefined);
+                    setSpeechinessMax(undefined);
+                    setLoudnessMin(undefined);
+                    setLoudnessMax(undefined);
+                    setKeys([]);
+                    setMode(undefined);
+                    setTimeSignatures([]);
+                  }}
+                  style={{
+                    fontSize: 11.5,
+                    color: "var(--fg-3)",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    background: "none",
+                    border: "none",
+                  }}
+                >
+                  Clear advanced filters
+                </button>
+              </div>
+            )}
+          </div>
+        </Popover>
+
+        {(hasInlineFilters || moreFilterCount > 0) && (
           <button
-            onClick={() => {
-              setGenres([]);
-              setYearMin(undefined);
-              setYearMax(undefined);
-              setPopularityMin(undefined);
-              setPopularityMax(undefined);
-              setExplicit(undefined);
-              setLocalSearch("");
-              setTracksSearch("");
-            }}
+            onClick={clearAllFilters}
             style={{
               fontSize: 11.5,
               color: "var(--fg-3)",
               cursor: "pointer",
               textDecoration: "underline",
+              background: "none",
+              border: "none",
             }}
           >
-            Clear filters
+            Clear all
           </button>
         )}
+
+        <div style={{ flex: 1 }} />
+
+        {/* Column picker */}
+        <button
+          ref={columnPickerRef}
+          onClick={() => { setColumnPickerOpen((o) => !o); }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            height: 24,
+            padding: "0 9px",
+            border: "1px solid var(--hair)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--bg)",
+            color: "var(--fg-1)",
+            fontSize: 11.5,
+            cursor: "pointer",
+          }}
+        >
+          <Columns2 size={11} />
+          Columns
+        </button>
+
+        <Popover
+          anchor={columnPickerRef}
+          open={columnPickerOpen}
+          onClose={() => { setColumnPickerOpen(false); }}
+          align="end"
+        >
+          <div style={{ minWidth: 200 }}>
+            <PopoverGroup>Columns</PopoverGroup>
+            {registry.map((spec) => (
+              <label
+                key={spec.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "5px 8px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  color: "var(--fg-1)",
+                  borderRadius: 3,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--bg-2)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "none";
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={tracksColumnVisibility[spec.id] ?? spec.defaultVisible}
+                  onChange={(e) => { setTracksColumnVisibility(spec.id, e.target.checked); }}
+                  style={{ cursor: "pointer" }}
+                />
+                {spec.label}
+              </label>
+            ))}
+            <div style={{ borderTop: "1px solid var(--hair)", padding: "5px 8px", marginTop: 2 }}>
+              <button
+                onClick={resetTracksColumns}
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--fg-3)",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  background: "none",
+                  border: "none",
+                }}
+              >
+                Reset to defaults
+              </button>
+            </div>
+          </div>
+        </Popover>
       </div>
 
       {/* Table */}
       <div style={{ overflow: "auto" }}>
         <DataTable
           data={rows as unknown as Track[]}
-          columns={columns}
+          columns={columns as ColumnDef<Track>[]}
           sorting={sorting}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           isLoading={isLoading}
         />
         <Pagination
