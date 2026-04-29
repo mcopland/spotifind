@@ -414,3 +414,50 @@ func (r *TrackRepo) UpsertAudioFeatures(ctx context.Context, batch []AudioFeatur
 	}
 	return nil
 }
+
+func (r *TrackRepo) GetStatsForUser(ctx context.Context, userID int64) (*models.TrackStats, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT
+			MIN(t.popularity), MAX(t.popularity),
+			MIN(al.release_year), MAX(al.release_year),
+			MIN(t.duration_ms), MAX(t.duration_ms),
+			MIN(t.tempo), MAX(t.tempo),
+			MIN(t.loudness), MAX(t.loudness),
+			MIN(t.energy), MAX(t.energy),
+			MIN(t.danceability), MAX(t.danceability),
+			MIN(t.valence), MAX(t.valence),
+			MIN(t.acousticness), MAX(t.acousticness),
+			MIN(t.instrumentalness), MAX(t.instrumentalness),
+			MIN(t.liveness), MAX(t.liveness),
+			MIN(t.speechiness), MAX(t.speechiness),
+			MIN(ar.popularity), MAX(ar.popularity),
+			MIN(ar.followers), MAX(ar.followers)
+		FROM tracks t
+		JOIN user_saved_tracks ust ON ust.track_id = t.id
+		LEFT JOIN albums al ON al.id = t.album_id
+		LEFT JOIN track_artists ta ON ta.track_id = t.id
+		LEFT JOIN artists ar ON ar.id = ta.artist_id
+		WHERE ust.user_id = $1`, userID)
+
+	s := &models.TrackStats{}
+	err := row.Scan(
+		&s.PopularityMin, &s.PopularityMax,
+		&s.YearMin, &s.YearMax,
+		&s.DurationMin, &s.DurationMax,
+		&s.TempoMin, &s.TempoMax,
+		&s.LoudnessMin, &s.LoudnessMax,
+		&s.EnergyMin, &s.EnergyMax,
+		&s.DanceabilityMin, &s.DanceabilityMax,
+		&s.ValenceMin, &s.ValenceMax,
+		&s.AcousticnessMin, &s.AcousticnessMax,
+		&s.InstrumentalnessMin, &s.InstrumentalnessMax,
+		&s.LivenessMin, &s.LivenessMax,
+		&s.SpeechinessMin, &s.SpeechinessMax,
+		&s.ArtistPopularityMin, &s.ArtistPopularityMax,
+		&s.ArtistFollowersMin, &s.ArtistFollowersMax,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get track stats for user %d: %w", userID, err)
+	}
+	return s, nil
+}

@@ -99,6 +99,37 @@ type SyncJob struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
+type TrackStats struct {
+	PopularityMin       *int     `json:"popularity_min"`
+	PopularityMax       *int     `json:"popularity_max"`
+	YearMin             *int     `json:"year_min"`
+	YearMax             *int     `json:"year_max"`
+	DurationMin         *int     `json:"duration_min"`
+	DurationMax         *int     `json:"duration_max"`
+	TempoMin            *float64 `json:"tempo_min"`
+	TempoMax            *float64 `json:"tempo_max"`
+	LoudnessMin         *float64 `json:"loudness_min"`
+	LoudnessMax         *float64 `json:"loudness_max"`
+	EnergyMin           *float64 `json:"energy_min"`
+	EnergyMax           *float64 `json:"energy_max"`
+	DanceabilityMin     *float64 `json:"danceability_min"`
+	DanceabilityMax     *float64 `json:"danceability_max"`
+	ValenceMin          *float64 `json:"valence_min"`
+	ValenceMax          *float64 `json:"valence_max"`
+	AcousticnessMin     *float64 `json:"acousticness_min"`
+	AcousticnessMax     *float64 `json:"acousticness_max"`
+	InstrumentalnessMin *float64 `json:"instrumentalness_min"`
+	InstrumentalnessMax *float64 `json:"instrumentalness_max"`
+	LivenessMin         *float64 `json:"liveness_min"`
+	LivenessMax         *float64 `json:"liveness_max"`
+	SpeechinessMin      *float64 `json:"speechiness_min"`
+	SpeechinessMax      *float64 `json:"speechiness_max"`
+	ArtistPopularityMin *int     `json:"artist_popularity_min"`
+	ArtistPopularityMax *int     `json:"artist_popularity_max"`
+	ArtistFollowersMin  *int     `json:"artist_followers_min"`
+	ArtistFollowersMax  *int     `json:"artist_followers_max"`
+}
+
 type TrackFilters struct {
 	Search                string
 	Genres                []string

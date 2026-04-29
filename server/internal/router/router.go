@@ -56,6 +56,7 @@ func New(h Handlers, jwtSecret, frontendURL string) http.Handler {
 			r.Use(middleware.Auth(jwtSecret))
 
 			r.Get("/tracks", h.Tracks.List)
+			r.Get("/tracks/stats", h.Tracks.Stats)
 			r.Get("/albums", h.Albums.List)
 			r.Get("/artists", h.Artists.List)
 			r.Get("/playlists", h.Playlists.List)

@@ -21,6 +21,10 @@ func (s *stubTrackRepo) ListForUser(_ context.Context, _ int64, _ models.TrackFi
 	return s.result, s.err
 }
 
+func (s *stubTrackRepo) GetStatsForUser(_ context.Context, _ int64) (*models.TrackStats, error) {
+	return &models.TrackStats{}, nil
+}
+
 func TestTrackHandler_List_OK(t *testing.T) {
 	stub := &stubTrackRepo{
 		result: &models.PaginatedResult[models.Track]{
@@ -83,6 +87,10 @@ type captureTrackRepo struct {
 func (c *captureTrackRepo) ListForUser(_ context.Context, _ int64, f models.TrackFilters) (*models.PaginatedResult[models.Track], error) {
 	*c.captureFilters = f
 	return c.stub.result, c.stub.err
+}
+
+func (c *captureTrackRepo) GetStatsForUser(_ context.Context, _ int64) (*models.TrackStats, error) {
+	return &models.TrackStats{}, nil
 }
 
 func TestTrackHandler_List_ParsesFilters(t *testing.T) {

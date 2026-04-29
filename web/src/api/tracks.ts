@@ -1,4 +1,4 @@
-import type { PaginatedResult, Track, TrackFilters } from "../types";
+import type { PaginatedResult, Track, TrackFilters, TrackStats } from "../types";
 import client from "./client";
 
 function buildParams(f: TrackFilters): Record<string, string | string[]> {
@@ -49,5 +49,10 @@ function buildParams(f: TrackFilters): Record<string, string | string[]> {
 
 export async function getTracks(filters: TrackFilters = {}): Promise<PaginatedResult<Track>> {
   const res = await client.get<PaginatedResult<Track>>("/tracks", { params: buildParams(filters) });
+  return res.data;
+}
+
+export async function getTrackStats(): Promise<TrackStats> {
+  const res = await client.get<TrackStats>("/tracks/stats");
   return res.data;
 }
