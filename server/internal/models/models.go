@@ -133,6 +133,7 @@ type TrackStats struct {
 type TrackFilters struct {
 	Search                string
 	Genres                []string
+	ArtistSpotifyID       *string
 	YearMin               *int
 	YearMax               *int
 	PopularityMin         *int

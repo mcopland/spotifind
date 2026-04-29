@@ -69,6 +69,9 @@ func parseTrackFilters(r *http.Request) models.TrackFilters {
 		SortBy:     q.Get("sort_by"),
 		SortDir:    q.Get("sort_dir"),
 	}
+	if v := q.Get("artist_id"); v != "" {
+		f.ArtistSpotifyID = &v
+	}
 
 	if genres := q["genre"]; len(genres) > 0 {
 		f.Genres = genres
