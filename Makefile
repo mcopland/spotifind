@@ -2,7 +2,7 @@ export PATH := $(shell go env GOPATH)/bin:$(PATH)
 
 .PHONY: dev up down logs migrate migrate-host migrate-docker \
         dev-server dev-web \
-        db-up db-down db-test-up db-test-down \
+        db-up db-down db-test-up db-test-down db-backup db-restore \
         prod-up prod-down \
         build test test-cover test-integration test-ci tools
 
@@ -56,6 +56,14 @@ db-test-up:
 
 db-test-down:
 	docker compose -f docker-compose.test.yml down
+
+# Backups
+db-backup:
+	./scripts/db-backup.sh
+
+db-restore:
+	@test -n "$(FILE)" || (echo "usage: make db-restore FILE=backups/spotifind-<timestamp>.dump CONFIRM=1"; exit 1)
+	CONFIRM=$(CONFIRM) ./scripts/db-restore.sh "$(FILE)"
 
 # Production stack
 prod-up:
