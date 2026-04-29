@@ -172,3 +172,7 @@ func TestTrackHandler_List_ParsesFilters_ArtistID(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rr.Code)
 	}
+	if captured.ArtistSpotifyID == nil || *captured.ArtistSpotifyID != "3WrFJ7ztbogyGnTHbHJFl2" {
+		t.Errorf("ArtistSpotifyID: want 3WrFJ7ztbogyGnTHbHJFl2, got %v", captured.ArtistSpotifyID)
+	}
+}
