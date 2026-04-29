@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mcopland/spotifind/internal/models"
@@ -50,10 +51,12 @@ func (r *TrackRepo) LinkArtist(ctx context.Context, trackID, artistID int64) err
 	return nil
 }
 
-func (r *TrackRepo) LinkToUser(ctx context.Context, userID, trackID int64) error {
+func (r *TrackRepo) LinkToUser(ctx context.Context, userID, trackID int64, savedAt time.Time) error {
 	_, err := r.db.Exec(ctx,
-		`INSERT INTO user_saved_tracks (user_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, trackID)
+		`INSERT INTO user_saved_tracks (user_id, track_id, saved_at)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (user_id, track_id) DO UPDATE SET saved_at = EXCLUDED.saved_at`,
+		userID, trackID, savedAt)
 	if err != nil {
 		return fmt.Errorf("link user %d to track %d: %w", userID, trackID, err)
 	}

@@ -46,7 +46,7 @@ func TestTrackRepo_ListForUser_ReturnsInserted(t *testing.T) {
 	if err := trackRepo.LinkArtist(ctx, track.ID, artist.ID); err != nil {
 		t.Fatalf("LinkArtist failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser failed: %v", err)
 	}
 
@@ -73,10 +73,10 @@ func TestTrackRepo_ListForUser_SearchFilter(t *testing.T) {
 	track2 := insertTestTrack(t, "track_search_tr_beta", album.ID, false)
 
 	trackRepo := repository.NewTrackRepo(testDB)
-	if err := trackRepo.LinkToUser(ctx, user.ID, track1.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track1.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser track1 failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, track2.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track2.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser track2 failed: %v", err)
 	}
 
@@ -101,7 +101,7 @@ func TestTrackRepo_ListForUser_GenreFilter(t *testing.T) {
 	if err := trackRepo.LinkArtist(ctx, track.ID, artist.ID); err != nil {
 		t.Fatalf("LinkArtist failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser failed: %v", err)
 	}
 
@@ -130,10 +130,10 @@ func TestTrackRepo_ListForUser_ExplicitFilter(t *testing.T) {
 	clean := insertTestTrack(t, "track_explicit_tr_2", album.ID, false)
 
 	trackRepo := repository.NewTrackRepo(testDB)
-	if err := trackRepo.LinkToUser(ctx, user.ID, explicit.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, explicit.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser explicit failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, clean.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, clean.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser clean failed: %v", err)
 	}
 
@@ -178,10 +178,10 @@ func TestTrackRepo_ListForUser_SearchFilter_MatchesArtistName(t *testing.T) {
 	if err := trackRepo.LinkArtist(ctx, otherTrack.ID, otherArtist.ID); err != nil {
 		t.Fatalf("LinkArtist other failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, otherTrack.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, otherTrack.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser other failed: %v", err)
 	}
 
@@ -210,7 +210,7 @@ func TestTrackRepo_ListForUser_SearchFilter_TokensAreAnded(t *testing.T) {
 
 	trackRepo := repository.NewTrackRepo(testDB)
 	for _, tr := range []*models.Track{track1, track2, track3} {
-		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID, time.Now()); err != nil {
 			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
 		}
 	}
@@ -237,7 +237,7 @@ func TestTrackRepo_ListForUser_SearchFilter_TrailingSpaceIsNoOp(t *testing.T) {
 
 	trackRepo := repository.NewTrackRepo(testDB)
 	for _, tr := range []*models.Track{track1, track2} {
-		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID, time.Now()); err != nil {
 			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
 		}
 	}
@@ -272,10 +272,10 @@ func TestTrackRepo_ListForUser_SearchFilter_TokensMatchAcrossFields(t *testing.T
 	if err := trackRepo.LinkArtist(ctx, track.ID, artist.ID); err != nil {
 		t.Fatalf("LinkArtist failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, otherTrack.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, otherTrack.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser other failed: %v", err)
 	}
 
@@ -306,7 +306,7 @@ func TestTrackRepo_ListForUser_DurationFilter(t *testing.T) {
 
 	trackRepo := repository.NewTrackRepo(testDB)
 	for _, tr := range []*models.Track{short, medium, long} {
-		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID, time.Now()); err != nil {
 			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
 		}
 	}
@@ -335,7 +335,7 @@ func TestTrackRepo_ListForUser_SavedAtFilter(t *testing.T) {
 
 	trackRepo := repository.NewTrackRepo(testDB)
 	for _, tr := range []*models.Track{old, mid, recent} {
-		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID, time.Now()); err != nil {
 			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
 		}
 	}
@@ -376,7 +376,7 @@ func TestTrackRepo_ListForUser_ArtistPopularityAndFollowersFilters(t *testing.T)
 		t.Fatalf("LinkArtist big failed: %v", err)
 	}
 	for _, tr := range []*models.Track{trackBySmall, trackByBig} {
-		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID, time.Now()); err != nil {
 			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
 		}
 	}
@@ -410,7 +410,7 @@ func TestTrackRepo_AudioFeatures_UpsertAndFilterAndSort(t *testing.T) {
 
 	trackRepo := repository.NewTrackRepo(testDB)
 	for _, tr := range []*models.Track{slow, fast, uncategorized} {
-		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID, time.Now()); err != nil {
 			t.Fatalf("LinkToUser %q failed: %v", tr.SpotifyID, err)
 		}
 	}
@@ -494,7 +494,7 @@ func TestTrackRepo_ListForUser_Pagination(t *testing.T) {
 
 	for _, sid := range []string{"track_page_tr_a", "track_page_tr_b", "track_page_tr_c"} {
 		tr := insertTestTrack(t, sid, album.ID, false)
-		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID); err != nil {
+		if err := trackRepo.LinkToUser(ctx, user.ID, tr.ID, time.Now()); err != nil {
 			t.Fatalf("LinkToUser failed for %q: %v", sid, err)
 		}
 	}
