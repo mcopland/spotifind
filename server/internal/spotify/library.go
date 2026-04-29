@@ -273,6 +273,43 @@ func (c *Client) GetTopArtists(ctx context.Context, timeRange string) ([]Spotify
 	return resp.Items, nil
 }
 
+// GetAlbumTracks fetches all tracks of an album from Spotify with pagination.
+func (c *Client) GetAlbumTracks(ctx context.Context, albumID string) ([]SpotifyTrack, error) {
+	type albumTracksItem struct {
+		ID          string          `json:"id"`
+		Name        string          `json:"name"`
+		TrackNumber int             `json:"track_number"`
+		DurationMs  int             `json:"duration_ms"`
+		Explicit    bool            `json:"explicit"`
+		Artists     []SpotifyArtist `json:"artists"`
+	}
+	offset := 0
+	limit := 50
+	var out []SpotifyTrack
+	for {
+		var page pagedResponse[albumTracksItem]
+		path := fmt.Sprintf("/albums/%s/tracks?limit=%d&offset=%d", albumID, limit, offset)
+		if err := c.Get(ctx, path, &page); err != nil {
+			return nil, fmt.Errorf("get album %s tracks: %w", albumID, err)
+		}
+		for _, item := range page.Items {
+			out = append(out, SpotifyTrack{
+				ID:          item.ID,
+				Name:        item.Name,
+				TrackNumber: item.TrackNumber,
+				DurationMs:  item.DurationMs,
+				Explicit:    item.Explicit,
+				Artists:     item.Artists,
+			})
+		}
+		offset += len(page.Items)
+		if page.Next == "" || len(page.Items) == 0 {
+			break
+		}
+	}
+	return out, nil
+}
+
 const audioFeaturesBatchLimit = 100
 
 type AudioFeatures struct {

@@ -21,6 +21,10 @@ func (s *stubAlbumRepo) ListForUser(_ context.Context, _ int64, _ models.AlbumFi
 	return s.result, s.err
 }
 
+func (s *stubAlbumRepo) GetBySpotifyID(_ context.Context, _ string) (*models.Album, error) {
+	return nil, nil
+}
+
 func TestAlbumHandler_List_OK(t *testing.T) {
 	stub := &stubAlbumRepo{
 		result: &models.PaginatedResult[models.Album]{
@@ -30,7 +34,7 @@ func TestAlbumHandler_List_OK(t *testing.T) {
 			PageSize: 50,
 		},
 	}
-	h := handler.NewAlbumHandler(stub)
+	h := handler.NewAlbumHandler(stub, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/albums", nil)
 	req = req.WithContext(withUserID(req.Context(), 42))
 	rr := httptest.NewRecorder()
@@ -50,7 +54,7 @@ func TestAlbumHandler_List_OK(t *testing.T) {
 }
 
 func TestAlbumHandler_List_Unauthorized(t *testing.T) {
-	h := handler.NewAlbumHandler(&stubAlbumRepo{})
+	h := handler.NewAlbumHandler(&stubAlbumRepo{}, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/albums", nil)
 	rr := httptest.NewRecorder()
 
@@ -63,7 +67,7 @@ func TestAlbumHandler_List_Unauthorized(t *testing.T) {
 
 func TestAlbumHandler_List_RepoError(t *testing.T) {
 	stub := &stubAlbumRepo{err: errors.New("db error")}
-	h := handler.NewAlbumHandler(stub)
+	h := handler.NewAlbumHandler(stub, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/albums", nil)
 	req = req.WithContext(withUserID(req.Context(), 42))
 	rr := httptest.NewRecorder()
@@ -85,12 +89,16 @@ func (c *captureAlbumRepo) ListForUser(_ context.Context, _ int64, f models.Albu
 	return c.stub.result, c.stub.err
 }
 
+func (c *captureAlbumRepo) GetBySpotifyID(_ context.Context, _ string) (*models.Album, error) {
+	return nil, nil
+}
+
 func TestAlbumHandler_List_ParsesFilters(t *testing.T) {
 	var captured models.AlbumFilters
 	stub := &stubAlbumRepo{
 		result: &models.PaginatedResult[models.Album]{Items: []models.Album{}},
 	}
-	h := handler.NewAlbumHandler(&captureAlbumRepo{stub: stub, captureFilters: &captured})
+	h := handler.NewAlbumHandler(&captureAlbumRepo{stub: stub, captureFilters: &captured}, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/albums?year_min=1990&year_max=2010&genre=jazz&page=2&page_size=20", nil)
 	req = req.WithContext(withUserID(req.Context(), 42))

@@ -1,4 +1,4 @@
-import type { Album, AlbumFilters, PaginatedResult } from "../types";
+import type { Album, AlbumFilters, AlbumTracksResponse, PaginatedResult } from "../types";
 import client from "./client";
 
 export async function getAlbums(filters: AlbumFilters = {}): Promise<PaginatedResult<Album>> {
@@ -12,5 +12,10 @@ export async function getAlbums(filters: AlbumFilters = {}): Promise<PaginatedRe
   if (filters.sort_by) params.sort_by = filters.sort_by;
   if (filters.sort_dir) params.sort_dir = filters.sort_dir;
   const res = await client.get<PaginatedResult<Album>>("/albums", { params });
+  return res.data;
+}
+
+export async function getAlbumTracks(spotifyID: string): Promise<AlbumTracksResponse> {
+  const res = await client.get<AlbumTracksResponse>(`/albums/${spotifyID}/tracks`);
   return res.data;
 }

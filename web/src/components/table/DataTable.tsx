@@ -19,6 +19,7 @@ interface DataTableProps<T> {
   sorting?: SortingState;
   onSortingChange?: React.Dispatch<React.SetStateAction<SortingState>>;
   isLoading?: boolean;
+  rowStyle?: (row: T) => React.CSSProperties | undefined;
 }
 
 export default function DataTable<T>({
@@ -27,6 +28,7 @@ export default function DataTable<T>({
   sorting,
   onSortingChange,
   isLoading,
+  rowStyle,
 }: DataTableProps<T>) {
   function handleSort(colId: string) {
     if (!onSortingChange) return;
@@ -136,9 +138,12 @@ export default function DataTable<T>({
               </td>
             </tr>
           ) : (
-            data.map((row, i) => (
+            data.map((row, i) => {
+              const extraStyle = rowStyle ? rowStyle(row) : undefined;
+              return (
               <tr
                 key={i}
+                style={extraStyle}
                 onMouseEnter={(e) => {
                   const cells = (e.currentTarget as HTMLTableRowElement).querySelectorAll("td");
                   cells.forEach((td) => {
@@ -184,7 +189,8 @@ export default function DataTable<T>({
                   );
                 })}
               </tr>
-            ))
+              );
+            })
           )}
         </tbody>
       </table>
