@@ -5,6 +5,7 @@ package repository_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/mcopland/spotifind/internal/models"
 	"github.com/mcopland/spotifind/internal/repository"
@@ -47,7 +48,7 @@ func TestPlaylistRepo_GetStats(t *testing.T) {
 	track := insertTestTrack(t, "stats_track_1", album.ID, false)
 
 	trackRepo := repository.NewTrackRepo(testDB)
-	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser track failed: %v", err)
 	}
 
@@ -111,10 +112,10 @@ func TestPlaylistRepo_GetDistinctGenresForUser(t *testing.T) {
 	if err := trackRepo.LinkArtist(ctx, track2.ID, artist2.ID); err != nil {
 		t.Fatalf("LinkArtist track2 failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, track1.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track1.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser track1 failed: %v", err)
 	}
-	if err := trackRepo.LinkToUser(ctx, user.ID, track2.ID); err != nil {
+	if err := trackRepo.LinkToUser(ctx, user.ID, track2.ID, time.Now()); err != nil {
 		t.Fatalf("LinkToUser track2 failed: %v", err)
 	}
 

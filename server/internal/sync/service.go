@@ -167,7 +167,11 @@ func (s *Service) syncTracks(ctx context.Context, client *spotify.Client, jobID,
 				_ = s.trackRepo.LinkArtist(ctx, saved.ID, ar.ID)
 			}
 
-			if err := s.trackRepo.LinkToUser(ctx, userID, saved.ID); err != nil {
+			spotifyAddedAt, parseErr := time.Parse(time.RFC3339, item.AddedAt)
+			if parseErr != nil {
+				return fmt.Errorf("parse added_at %q for track %s: %w", item.AddedAt, st.ID, parseErr)
+			}
+			if err := s.trackRepo.LinkToUser(ctx, userID, saved.ID, spotifyAddedAt); err != nil {
 				return err
 			}
 
