@@ -2,11 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 const DEFAULT_VISIBLE_COLUMNS = [
-  "num", "track", "artist", "album", "genre", "length", "added", "source",
+  "num", "track", "artist", "album", "genre", "length", "added",
 ];
 
 const ALL_COLUMNS = [
-  "num", "track", "artist", "album", "genre", "length", "added", "source",
+  "num", "track", "artist", "album", "genre", "length", "added",
   "popularity", "bpm", "key", "mode", "time_sig", "energy", "danceability",
   "valence", "acousticness", "instrumentalness", "liveness", "speechiness",
   "loudness", "explicit",
@@ -216,6 +216,23 @@ export const useFilterStore = create<FilterState>()(
     }),
     {
       name: "spotifind.filters",
+      version: 1,
+      migrate: (persisted: unknown) => {
+        const s = persisted as Record<string, unknown>;
+        const dropSource = (arr: unknown) =>
+          Array.isArray(arr) ? (arr as string[]).filter((c) => c !== "source") : arr;
+        return {
+          ...s,
+          tracksColumnVisibility: s.tracksColumnVisibility
+            ? (() => {
+                const v = { ...(s.tracksColumnVisibility as Record<string, boolean>) };
+                delete v.source;
+                return v;
+              })()
+            : undefined,
+          tracksColumnOrder: dropSource(s.tracksColumnOrder),
+        };
+      },
       partialize: (state) => ({
         tracksSearch: state.tracksSearch,
         genres: state.genres,

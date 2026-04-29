@@ -3,7 +3,7 @@ import { Columns2, Search, SlidersHorizontal } from "lucide-react";
 import { type ReactNode, type SetStateAction, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getGenres } from "../api/sync";
-import { getTracks } from "../api/tracks";
+import { getTracks, getTrackStats } from "../api/tracks";
 import { getPlaylists } from "../api/playlists";
 import Badge from "../components/primitives/Badge";
 import FilterChip from "../components/primitives/FilterChip";
@@ -14,38 +14,7 @@ import { useFilterStore } from "../stores/filterStore";
 import type { Track } from "../types";
 import { fmtMs, relDate } from "../utils/format";
 
-const COVER_COLORS = [
-  "oklch(0.7 0.12 280)",
-  "oklch(0.7 0.12 160)",
-  "oklch(0.7 0.12 40)",
-  "oklch(0.7 0.12 220)",
-  "oklch(0.7 0.12 320)",
-];
-
 const PITCH_CLASSES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-function CoverPlaceholder({ name, size = 22 }: { name: string; size?: number }) {
-  const idx = name.charCodeAt(0) % COVER_COLORS.length;
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 3,
-        background: `linear-gradient(135deg, ${COVER_COLORS[idx]}, var(--bg-3))`,
-        border: "1px solid var(--hair)",
-        display: "inline-grid",
-        placeItems: "center",
-        color: "white",
-        fontFamily: "var(--font-mono)",
-        fontSize: size * 0.4,
-        flexShrink: 0,
-      }}
-    >
-      {name.slice(0, 1).toUpperCase()}
-    </div>
-  );
-}
 
 function EnergyBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
@@ -156,7 +125,17 @@ function buildRegistry(
         enableSorting: true,
         cell: ({ row }) => (
           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-            <CoverPlaceholder name={row.original.name} />
+            {row.original.album?.image_url ? (
+              <img
+                src={row.original.album.image_url}
+                alt=""
+                width={32}
+                height={32}
+                style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
+              />
+            ) : (
+              <div style={{ width: 32, height: 32, borderRadius: 4, background: "var(--bg-3)", flexShrink: 0 }} />
+            )}
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
@@ -167,10 +146,6 @@ function buildRegistry(
                 }}
               >
                 {row.original.name}
-              </div>
-              <div style={{ color: "var(--fg-3)", fontSize: 11 }}>
-                {row.original.album?.name}
-                {row.original.album?.release_year ? ` · ${String(row.original.album.release_year)}` : ""}
               </div>
             </div>
           </div>
@@ -271,16 +246,6 @@ function buildRegistry(
             {row.original.saved_at ? relDate(row.original.saved_at) : "--"}
           </span>
         ),
-      },
-    },
-    {
-      id: "source",
-      label: "Source",
-      defaultVisible: true,
-      colDef: {
-        id: "source",
-        header: "Source",
-        cell: () => <Badge variant="info">library</Badge>,
       },
     },
     {
@@ -642,6 +607,12 @@ export default function TracksPage() {
     queryFn: getPlaylists,
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ["track-stats"],
+    queryFn: getTrackStats,
+    staleTime: 60_000,
+  });
+
   const sorting: SortingState = sortBy
     ? [{ id: SORT_KEY_TO_COL[sortBy] ?? sortBy, desc: sortDir === "desc" }]
     : [];
@@ -979,14 +950,14 @@ export default function TracksPage() {
           <div style={{ padding: "6px 8px", display: "flex", gap: 8 }}>
             <input
               type="number"
-              placeholder="From"
+              placeholder={stats?.year_min != null ? String(stats.year_min) : "From"}
               value={yearMin ?? ""}
               onChange={(e) => { setYearMin(e.target.value ? Number(e.target.value) : undefined); }}
               style={inputStyle}
             />
             <input
               type="number"
-              placeholder="To"
+              placeholder={stats?.year_max != null ? String(stats.year_max) : "To"}
               value={yearMax ?? ""}
               onChange={(e) => { setYearMax(e.target.value ? Number(e.target.value) : undefined); }}
               style={inputStyle}
@@ -1038,14 +1009,14 @@ export default function TracksPage() {
           <div style={{ padding: "6px 8px", display: "flex", gap: 8 }}>
             <input
               type="number"
-              placeholder="From"
+              placeholder={stats?.duration_min != null ? String(Math.round(stats.duration_min / 1000)) : "From"}
               value={durationMin !== undefined ? Math.round(durationMin / 1000) : ""}
               onChange={(e) => { setDurationMin(e.target.value ? Number(e.target.value) * 1000 : undefined); }}
               style={inputStyle}
             />
             <input
               type="number"
-              placeholder="To"
+              placeholder={stats?.duration_max != null ? String(Math.round(stats.duration_max / 1000)) : "To"}
               value={durationMax !== undefined ? Math.round(durationMax / 1000) : ""}
               onChange={(e) => { setDurationMax(e.target.value ? Number(e.target.value) * 1000 : undefined); }}
               style={inputStyle}
@@ -1173,19 +1144,31 @@ export default function TracksPage() {
 
             <PopoverGroup>Audio features</PopoverGroup>
             {/* Tempo */}
-            <RangeRow label="Tempo (BPM)" minVal={tempoMin} maxVal={tempoMax} onMinChange={setTempoMin} onMaxChange={setTempoMax} />
+            <RangeRow
+              label="Tempo (BPM)"
+              minVal={tempoMin} maxVal={tempoMax}
+              onMinChange={setTempoMin} onMaxChange={setTempoMax}
+              minPlaceholder={stats?.tempo_min != null ? String(Math.round(stats.tempo_min)) : undefined}
+              maxPlaceholder={stats?.tempo_max != null ? String(Math.round(stats.tempo_max)) : undefined}
+            />
             {/* Loudness */}
-            <RangeRow label="Loudness (dB)" minVal={loudnessMin} maxVal={loudnessMax} onMinChange={setLoudnessMin} onMaxChange={setLoudnessMax} minPlaceholder="-60" maxPlaceholder="0" />
+            <RangeRow
+              label="Loudness (dB)"
+              minVal={loudnessMin} maxVal={loudnessMax}
+              onMinChange={setLoudnessMin} onMaxChange={setLoudnessMax}
+              minPlaceholder={stats?.loudness_min != null ? String(Math.round(stats.loudness_min)) : "-60"}
+              maxPlaceholder={stats?.loudness_max != null ? String(Math.round(stats.loudness_max)) : "0"}
+            />
             {/* 0-1 float filters */}
             {([
-              ["Energy", energyMin, energyMax, setEnergyMin, setEnergyMax],
-              ["Danceability", danceabilityMin, danceabilityMax, setDanceabilityMin, setDanceabilityMax],
-              ["Valence", valenceMin, valenceMax, setValenceMin, setValenceMax],
-              ["Acousticness", acousticnessMin, acousticnessMax, setAcousticnessMin, setAcousticnessMax],
-              ["Instrumental.", instrumentalnessMin, instrumentalnessMax, setInstrumentalnessMin, setInstrumentalnessMax],
-              ["Liveness", livenessMin, livenessMax, setLivenessMin, setLivenessMax],
-              ["Speechiness", speechinessMin, speechinessMax, setSpeechinessMin, setSpeechinessMax],
-            ] as const).map(([label, minV, maxV, onMin, onMax]) => (
+              ["Energy", energyMin, energyMax, setEnergyMin, setEnergyMax, stats?.energy_min, stats?.energy_max],
+              ["Danceability", danceabilityMin, danceabilityMax, setDanceabilityMin, setDanceabilityMax, stats?.danceability_min, stats?.danceability_max],
+              ["Valence", valenceMin, valenceMax, setValenceMin, setValenceMax, stats?.valence_min, stats?.valence_max],
+              ["Acousticness", acousticnessMin, acousticnessMax, setAcousticnessMin, setAcousticnessMax, stats?.acousticness_min, stats?.acousticness_max],
+              ["Instrumental.", instrumentalnessMin, instrumentalnessMax, setInstrumentalnessMin, setInstrumentalnessMax, stats?.instrumentalness_min, stats?.instrumentalness_max],
+              ["Liveness", livenessMin, livenessMax, setLivenessMin, setLivenessMax, stats?.liveness_min, stats?.liveness_max],
+              ["Speechiness", speechinessMin, speechinessMax, setSpeechinessMin, setSpeechinessMax, stats?.speechiness_min, stats?.speechiness_max],
+            ] as const).map(([label, minV, maxV, onMin, onMax, statMin, statMax]) => (
               <RangeRow
                 key={label}
                 label={label}
@@ -1193,8 +1176,8 @@ export default function TracksPage() {
                 maxVal={maxV !== undefined ? Math.round(maxV * 100) : undefined}
                 onMinChange={(v) => { onMin(v !== undefined ? v / 100 : undefined); }}
                 onMaxChange={(v) => { onMax(v !== undefined ? v / 100 : undefined); }}
-                minPlaceholder="0%"
-                maxPlaceholder="100%"
+                minPlaceholder={statMin != null ? `${String(Math.round(statMin * 100))}%` : "0%"}
+                maxPlaceholder={statMax != null ? `${String(Math.round(statMax * 100))}%` : "100%"}
               />
             ))}
             {/* Key */}
@@ -1252,8 +1235,20 @@ export default function TracksPage() {
             </div>
 
             <PopoverGroup>Artists</PopoverGroup>
-            <RangeRow label="Artist popularity" minVal={artistPopularityMin} maxVal={artistPopularityMax} onMinChange={setArtistPopularityMin} onMaxChange={setArtistPopularityMax} minPlaceholder="0" maxPlaceholder="100" />
-            <RangeRow label="Followers" minVal={artistFollowersMin} maxVal={artistFollowersMax} onMinChange={setArtistFollowersMin} onMaxChange={setArtistFollowersMax} />
+            <RangeRow
+              label="Artist popularity"
+              minVal={artistPopularityMin} maxVal={artistPopularityMax}
+              onMinChange={setArtistPopularityMin} onMaxChange={setArtistPopularityMax}
+              minPlaceholder={stats?.artist_popularity_min != null ? String(stats.artist_popularity_min) : "0"}
+              maxPlaceholder={stats?.artist_popularity_max != null ? String(stats.artist_popularity_max) : "100"}
+            />
+            <RangeRow
+              label="Followers"
+              minVal={artistFollowersMin} maxVal={artistFollowersMax}
+              onMinChange={setArtistFollowersMin} onMaxChange={setArtistFollowersMax}
+              minPlaceholder={stats?.artist_followers_min != null ? String(stats.artist_followers_min) : undefined}
+              maxPlaceholder={stats?.artist_followers_max != null ? String(stats.artist_followers_max) : undefined}
+            />
 
             {moreFilterCount > 0 && (
               <div style={{ padding: "6px 8px", borderTop: "1px solid var(--hair)", marginTop: 4 }}>
