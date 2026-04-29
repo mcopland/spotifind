@@ -15,5 +15,58 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile.dev
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://spotifind:spotifind@db:5432/spotifind?sslmode=disable
+      PORT: "8080"
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./server:/server
+      - go-cache:/root/.cache/go-build
+      - go-mod-cache:/go/pkg/mod
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_PROXY_TARGET: http://server:8080
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web:/web
+      - web-node-modules:/web/node_modules
+    depends_on:
+      - server
+
+  migrate:
+    build:
+      context: .
+      dockerfile: server/Dockerfile.dev
+    profiles: [tools]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://spotifind:spotifind@db:5432/spotifind?sslmode=disable
+    working_dir: /server
+    volumes:
+      - ./server:/server
+    command: ["go", "run", "./cmd/migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:
+  go-cache:
+  go-mod-cache:
+  web-node-modules:

@@ -1,0 +1,8 @@
+.git
+.env
+backups/
+server/bin/
+server/tmp/
+server/*.out
+web/node_modules/
+web/dist/
