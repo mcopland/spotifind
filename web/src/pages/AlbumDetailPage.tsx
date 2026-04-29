@@ -1,11 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
-import { useLocation, useParams } from "react-router-dom";
-import { getTracks } from "../api/tracks";
+import { useParams } from "react-router-dom";
+import { getAlbumTracks } from "../api/albums";
 import DataTable, { type ColumnDef } from "../components/table/DataTable";
-import Pagination from "../components/table/Pagination";
-import { useFilterStore } from "../stores/filterStore";
-import type { Track } from "../types";
+import type { AlbumTrack } from "../types";
 import { fmtMs } from "../utils/format";
 
 function go(path: string) {
@@ -44,7 +42,7 @@ function CoverPlaceholder({ name, size = 56 }: { name: string; size?: number }) 
   );
 }
 
-const trackColumns: ColumnDef<Track>[] = [
+const trackColumns: ColumnDef<AlbumTrack>[] = [
   {
     id: "track_number",
     header: "#",
@@ -82,69 +80,21 @@ const trackColumns: ColumnDef<Track>[] = [
       </span>
     ),
   },
-  {
-    id: "popularity",
-    header: "Popularity",
-    accessorKey: "popularity",
-    numeric: true,
-    cell: ({ row }) => (
-      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--fg-1)" }}>
-        {row.original.popularity}
-      </span>
-    ),
-  },
 ];
 
 export default function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const location = useLocation();
-  const nameFromState = (location.state as Record<string, string> | null)?.name;
-  const { page, pageSize, setPage } = useFilterStore();
 
-  // No direct /api/albums/:id endpoint — search by album name as workaround
-  const { data: tracksData, isLoading } = useQuery({
-    queryKey: ["album-tracks", nameFromState, page, pageSize],
-    queryFn: () => getTracks({ search: nameFromState, page, page_size: pageSize }),
-    enabled: !!nameFromState,
+  const { data, isLoading } = useQuery({
+    queryKey: ["album-tracks", id],
+    queryFn: () => getAlbumTracks(id ?? ""),
+    enabled: !!id,
   });
 
-  // Get album metadata from the first track
-  const albumMeta = tracksData?.items[0]?.album;
-  const displayName = albumMeta?.name ?? nameFromState ?? id ?? "Album";
-
-  if (!nameFromState) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: 240,
-          gap: 8,
-          color: "var(--fg-3)",
-          fontSize: 13,
-        }}
-      >
-        <span>Navigate to an album from the Library view.</span>
-        <button
-          onClick={() => { go("/library"); }}
-          style={{
-            marginTop: 4,
-            padding: "4px 12px",
-            background: "var(--acc)",
-            color: "black",
-            borderRadius: "var(--radius-sm)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          Go to Library
-        </button>
-      </div>
-    );
-  }
+  const albumMeta = data?.album;
+  const displayName = albumMeta?.name ?? id ?? "Album";
+  const likedCount = data?.tracks.filter((t) => t.liked).length ?? 0;
+  const totalCount = data?.tracks.length ?? 0;
 
   return (
     <>
@@ -204,9 +154,12 @@ export default function AlbumDetailPage() {
               {albumMeta?.release_year && (
                 <span style={{ fontFamily: "var(--font-mono)" }}>{albumMeta.release_year}</span>
               )}
-              {albumMeta?.total_tracks && (
+              {data && (
                 <span style={{ fontFamily: "var(--font-mono)" }}>
-                  {albumMeta.total_tracks} tracks
+                  {totalCount} tracks
+                  {likedCount < totalCount && (
+                    <span style={{ color: "var(--fg-3)" }}> · {likedCount} liked</span>
+                  )}
                 </span>
               )}
             </div>
@@ -217,15 +170,10 @@ export default function AlbumDetailPage() {
       {/* Track table */}
       <div style={{ overflow: "auto" }}>
         <DataTable
-          data={tracksData?.items ?? []}
+          data={data?.tracks ?? []}
           columns={trackColumns}
           isLoading={isLoading}
-        />
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          total={tracksData?.total ?? 0}
-          onPageChange={setPage}
+          rowStyle={(row) => (!row.liked ? { opacity: 0.4 } : undefined)}
         />
       </div>
     </>

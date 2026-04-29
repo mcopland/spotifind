@@ -423,6 +423,32 @@ func (r *TrackRepo) UpsertAudioFeatures(ctx context.Context, batch []AudioFeatur
 	return nil
 }
 
+// LikedSpotifyIDs returns the subset of the given spotify IDs that the user has saved.
+func (r *TrackRepo) LikedSpotifyIDs(ctx context.Context, userID int64, spotifyIDs []string) (map[string]bool, error) {
+	if len(spotifyIDs) == 0 {
+		return map[string]bool{}, nil
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT t.spotify_id
+		FROM tracks t
+		JOIN user_saved_tracks ust ON ust.track_id = t.id
+		WHERE ust.user_id = $1 AND t.spotify_id = ANY($2)`,
+		userID, spotifyIDs)
+	if err != nil {
+		return nil, fmt.Errorf("liked spotify ids for user %d: %w", userID, err)
+	}
+	defer rows.Close()
+	liked := make(map[string]bool, len(spotifyIDs))
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan liked spotify id: %w", err)
+		}
+		liked[id] = true
+	}
+	return liked, nil
+}
+
 func (r *TrackRepo) GetStatsForUser(ctx context.Context, userID int64) (*models.TrackStats, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT

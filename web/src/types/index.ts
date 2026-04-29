@@ -125,6 +125,21 @@ export interface TrackStats {
   artist_followers_max: number | null;
 }
 
+export interface AlbumTrack {
+  spotify_id: string;
+  name: string;
+  track_number: number;
+  duration_ms: number;
+  explicit: boolean;
+  artists: Artist[];
+  liked: boolean;
+}
+
+export interface AlbumTracksResponse {
+  album: Album | null;
+  tracks: AlbumTrack[];
+}
+
 export interface TrackFilters {
   search?: string;
   genres?: string[];

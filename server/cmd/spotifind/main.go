@@ -49,7 +49,7 @@ func main() {
 	handlers := router.Handlers{
 		Auth:           handler.NewAuthHandler(authClient, userRepo, cfg.JWTSecret, cfg.FrontendURL),
 		Tracks:         handler.NewTrackHandler(trackRepo),
-		Albums:         handler.NewAlbumHandler(albumRepo),
+		Albums:         handler.NewAlbumHandler(albumRepo, trackRepo, userRepo, authClient),
 		Artists:        handler.NewArtistHandler(artistRepo),
 		Playlists:      handler.NewPlaylistHandler(playlistRepo),
 		Sync:           handler.NewSyncHandler(syncService, syncRepo),
