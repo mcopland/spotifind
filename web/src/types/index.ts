@@ -97,6 +97,7 @@ export interface Stats {
 export interface TrackFilters {
   search?: string;
   genres?: string[];
+  artist_id?: string;
   year_min?: number;
   year_max?: number;
   popularity_min?: number;

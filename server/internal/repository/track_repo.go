@@ -136,6 +136,14 @@ func (r *TrackRepo) ListForUser(ctx context.Context, userID int64, f models.Trac
 		args = append(args, f.PlaylistID)
 		idx++
 	}
+	if f.ArtistSpotifyID != nil {
+		where = append(where, fmt.Sprintf(`EXISTS (
+			SELECT 1 FROM track_artists ta_a
+			JOIN artists ar_a ON ar_a.id = ta_a.artist_id
+			WHERE ta_a.track_id = t.id AND ar_a.spotify_id = $%d)`, idx))
+		args = append(args, *f.ArtistSpotifyID)
+		idx++
+	}
 	if f.SavedAtMin != nil {
 		where = append(where, fmt.Sprintf("ust.saved_at >= $%d", idx))
 		args = append(args, *f.SavedAtMin)

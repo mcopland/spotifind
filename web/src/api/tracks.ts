@@ -4,6 +4,7 @@ import client from "./client";
 function buildParams(f: TrackFilters): Record<string, string | string[]> {
   const params: Record<string, string | string[]> = {};
   if (f.search) params.search = f.search;
+  if (f.artist_id) params.artist_id = f.artist_id;
   if (f.genres?.length) params.genre = f.genres;
   if (f.year_min != null) params.year_min = String(f.year_min);
   if (f.year_max != null) params.year_max = String(f.year_max);

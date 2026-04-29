@@ -147,3 +147,20 @@ func TestTrackHandler_List_ParsesFilters(t *testing.T) {
 		t.Errorf("PlaylistID: want playlist-abc, got %q", captured.PlaylistID)
 	}
 }
+
+func TestTrackHandler_List_ParsesFilters_ArtistID(t *testing.T) {
+	var captured models.TrackFilters
+	stub := &stubTrackRepo{
+		result: &models.PaginatedResult[models.Track]{Items: []models.Track{}},
+	}
+	h := handler.NewTrackHandler(&captureTrackRepo{stub: stub, captureFilters: &captured})
+
+	req := httptest.NewRequest(http.MethodGet, "/tracks?artist_id=3WrFJ7ztbogyGnTHbHJFl2", nil)
+	req = req.WithContext(withUserID(req.Context(), 42))
+	rr := httptest.NewRecorder()
+
+	h.List(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
