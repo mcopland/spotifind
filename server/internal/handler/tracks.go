@@ -12,16 +12,17 @@ import (
 	"github.com/mcopland/spotifind/internal/models"
 )
 
-// TrackLister is satisfied by repository.TrackRepo.
-type TrackLister interface {
+// TrackQuerier is satisfied by repository.TrackRepo.
+type TrackQuerier interface {
 	ListForUser(ctx context.Context, userID int64, f models.TrackFilters) (*models.PaginatedResult[models.Track], error)
+	GetStatsForUser(ctx context.Context, userID int64) (*models.TrackStats, error)
 }
 
 type TrackHandler struct {
-	trackRepo TrackLister
+	trackRepo TrackQuerier
 }
 
-func NewTrackHandler(repo TrackLister) *TrackHandler {
+func NewTrackHandler(repo TrackQuerier) *TrackHandler {
 	return &TrackHandler{trackRepo: repo}
 }
 
@@ -41,6 +42,23 @@ func (h *TrackHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+func (h *TrackHandler) Stats(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	stats, err := h.trackRepo.GetStatsForUser(r.Context(), userID)
+	if err != nil {
+		http.Error(w, "failed to get track stats", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }
 
 func parseTrackFilters(r *http.Request) models.TrackFilters {

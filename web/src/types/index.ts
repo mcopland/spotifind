@@ -94,6 +94,37 @@ export interface Stats {
   playlists: number;
 }
 
+export interface TrackStats {
+  popularity_min: number | null;
+  popularity_max: number | null;
+  year_min: number | null;
+  year_max: number | null;
+  duration_min: number | null;
+  duration_max: number | null;
+  tempo_min: number | null;
+  tempo_max: number | null;
+  loudness_min: number | null;
+  loudness_max: number | null;
+  energy_min: number | null;
+  energy_max: number | null;
+  danceability_min: number | null;
+  danceability_max: number | null;
+  valence_min: number | null;
+  valence_max: number | null;
+  acousticness_min: number | null;
+  acousticness_max: number | null;
+  instrumentalness_min: number | null;
+  instrumentalness_max: number | null;
+  liveness_min: number | null;
+  liveness_max: number | null;
+  speechiness_min: number | null;
+  speechiness_max: number | null;
+  artist_popularity_min: number | null;
+  artist_popularity_max: number | null;
+  artist_followers_min: number | null;
+  artist_followers_max: number | null;
+}
+
 export interface TrackFilters {
   search?: string;
   genres?: string[];
