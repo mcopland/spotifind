@@ -1,7 +1,5 @@
-import { Search } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useSyncStatus } from "../../hooks/useSyncStatus";
-import Breadcrumbs from "./Breadcrumbs";
 import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
@@ -72,44 +70,7 @@ export default function Header() {
         </span>
       </div>
 
-      <div style={{ width: 16 }} />
-
-      <Breadcrumbs />
-
       <div style={{ flex: 1 }} />
-
-      {/* Cmd+K search placeholder */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "4px 8px",
-          border: "1px solid var(--hair)",
-          borderRadius: "var(--radius-sm)",
-          color: "var(--fg-2)",
-          background: "var(--bg)",
-          minWidth: 220,
-          fontSize: 12,
-          cursor: "text",
-        }}
-      >
-        <Search size={12} style={{ color: "var(--fg-3)" }} />
-        <span>Search tracks, artists, albums…</span>
-        <kbd
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            color: "var(--fg-3)",
-            marginLeft: "auto",
-            border: "1px solid var(--hair)",
-            padding: "0 4px",
-            borderRadius: 3,
-          }}
-        >
-          ⌘K
-        </kbd>
-      </div>
 
       {/* Sync pill */}
       {label && (
